@@ -1,0 +1,16 @@
+{
+  "apid": "member",
+  "opid": "register",
+  "name": "申請會員",
+  "returnCode": "0000",
+  "returnMsg": "註冊成功",
+  "data": {
+    "id": "CBZ0000099",
+    "account": "newuser",
+    "name": "新會員",
+    "phone": "0922333444",
+    "role": "member",
+    "credit": 0,
+    "createdAt": "2026-06-08T08:00:00.000Z"
+  }
+}

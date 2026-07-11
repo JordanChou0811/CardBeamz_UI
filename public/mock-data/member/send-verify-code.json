@@ -1,0 +1,12 @@
+{
+  "apid": "member",
+  "opid": "send-verify-code",
+  "name": "發送手機驗證碼",
+  "returnCode": "0000",
+  "returnMsg": "驗證碼已發送",
+  "data": {
+    "phone": "0922333444",
+    "expiresInSec": 180,
+    "resendAfterSec": 60
+  }
+}

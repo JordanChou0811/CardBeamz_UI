@@ -1,0 +1,15 @@
+{
+  "apid": "warehouse",
+  "opid": "exchange",
+  "name": "換團拆金",
+  "returnCode": "0000",
+  "returnMsg": "兌換成功",
+  "data": {
+    "itemId": "ITM00000003",
+    "groupCode": "CBZ01",
+    "status": "exchanged",
+    "exchangeValue": 120,
+    "creditAfter": 1400,
+    "exchangedAt": "2026-06-08T08:12:00.000Z"
+  }
+}

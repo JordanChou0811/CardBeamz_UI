@@ -1,0 +1,14 @@
+{
+  "apid": "news",
+  "opid": "save",
+  "name": "新增/修改消息",
+  "returnCode": "0000",
+  "returnMsg": "儲存成功",
+  "data": {
+    "id": "NEWS-0003",
+    "title": "新消息標題",
+    "category": "event",
+    "content": "新消息內容",
+    "publishedAt": "2026-06-08T08:35:00.000Z"
+  }
+}

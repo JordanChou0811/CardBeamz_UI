@@ -1,0 +1,26 @@
+{
+  "apid": "news",
+  "opid": "list",
+  "name": "消息列表",
+  "returnCode": "0000",
+  "returnMsg": "成功",
+  "data": {
+    "total": 2,
+    "news": [
+      {
+        "id": "NEWS-0001",
+        "title": "六月新團開拆公告",
+        "category": "event",
+        "content": "本月新團 CBZ03 即將開拆，敬請期待！",
+        "publishedAt": "2026-06-05T00:00:00.000Z"
+      },
+      {
+        "id": "NEWS-0002",
+        "title": "系統維護通知",
+        "category": "system",
+        "content": "6/10 02:00～04:00 進行系統維護。",
+        "publishedAt": "2026-06-06T00:00:00.000Z"
+      }
+    ]
+  }
+}

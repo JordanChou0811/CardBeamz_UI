@@ -1,1 +1,489 @@
-/* You can add global styles to this file, and also import other style files */
+/* ===== CardBeamz 全域設計系統 ===== */
+
+:root {
+  --c-primary: #ff2d88;
+  --c-primary-dark: #d81b6a;
+  --c-primary-light: #ffe4f1;
+  --c-accent: #ff5fa8;
+  --c-bg: #fdf3f8;
+  --c-surface: #ffffff;
+  --c-surface-2: #fdf1f7;
+  --c-text: #1c1620;
+  --c-muted: #8a7d86;
+  --c-border: #f1dce8;
+  --c-dark: #0e0b12;
+  --c-success: #10b981;
+  --c-warning: #f59e0b;
+  --c-danger: #ef4444;
+  --radius: 14px;
+  --radius-sm: 9px;
+  --shadow: 0 10px 30px rgba(216, 27, 106, 0.12);
+  --shadow-sm: 0 2px 10px rgba(216, 27, 106, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: 'Noto Sans TC', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--c-bg);
+  color: var(--c-text);
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+/* ===== 星空主題 ===== */
+body[data-theme='starry'] {
+  --c-bg: #05060f;
+  --c-surface: #0f1124;
+  --c-surface-2: #161a33;
+  --c-text: #e8eaf6;
+  --c-muted: #9aa0c4;
+  --c-border: #262a4d;
+  --c-primary-light: #2a1430;
+  --c-accent: #8b5cf6;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+  --shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.45);
+}
+
+body[data-theme='starry']::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-color: #05060f;
+  background-image:
+    radial-gradient(1.5px 1.5px at 12% 22%, #ffffff, transparent),
+    radial-gradient(1.5px 1.5px at 28% 68%, #cfd6ff, transparent),
+    radial-gradient(1px 1px at 45% 35%, #ffffff, transparent),
+    radial-gradient(2px 2px at 62% 18%, #ffe8fb, transparent),
+    radial-gradient(1px 1px at 75% 55%, #ffffff, transparent),
+    radial-gradient(1.5px 1.5px at 88% 30%, #c9d2ff, transparent),
+    radial-gradient(1px 1px at 55% 82%, #ffffff, transparent),
+    radial-gradient(1.5px 1.5px at 18% 88%, #ffe8fb, transparent),
+    radial-gradient(1px 1px at 92% 78%, #ffffff, transparent),
+    radial-gradient(circle at 80% 12%, rgba(139, 92, 246, 0.18), transparent 45%),
+    radial-gradient(circle at 15% 85%, rgba(255, 45, 136, 0.16), transparent 45%);
+  animation: twinkle 5s ease-in-out infinite alternate;
+}
+
+@keyframes twinkle {
+  from {
+    opacity: 0.75;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+h1,
+h2,
+h3 {
+  margin: 0 0 0.4em;
+  font-weight: 700;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ---- 按鈕 ---- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 11px 20px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+  white-space: nowrap;
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--c-primary);
+  color: #fff;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--c-primary-dark);
+}
+
+.btn-accent {
+  background: var(--c-accent);
+  color: #fff;
+}
+.btn-accent:hover:not(:disabled) {
+  filter: brightness(0.95);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--c-primary);
+  border: 1.5px solid var(--c-primary);
+}
+.btn-ghost:hover:not(:disabled) {
+  background: var(--c-primary-light);
+}
+
+.btn-outline {
+  background: var(--c-surface);
+  color: var(--c-text);
+  border: 1.5px solid var(--c-border);
+}
+.btn-outline:hover:not(:disabled) {
+  border-color: var(--c-primary);
+  color: var(--c-primary);
+}
+
+.btn-success {
+  background: var(--c-success);
+  color: #fff;
+}
+.btn-danger {
+  background: var(--c-danger);
+  color: #fff;
+}
+.btn-warning {
+  background: var(--c-warning);
+  color: #fff;
+}
+
+.btn-sm {
+  padding: 7px 13px;
+  font-size: 13px;
+}
+.btn-block {
+  width: 100%;
+}
+
+/* ---- 卡片 ---- */
+.card {
+  background: var(--c-surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 24px;
+}
+
+.card-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ---- 表單 ---- */
+.field {
+  margin-bottom: 16px;
+}
+
+.field label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--c-text);
+}
+
+.field .req {
+  color: var(--c-danger);
+  margin-left: 3px;
+}
+
+.input,
+input[type='text'],
+input[type='password'],
+input[type='tel'],
+input[type='email'],
+input[type='number'],
+textarea,
+select {
+  width: 100%;
+  padding: 11px 13px;
+  border: 1.5px solid var(--c-border);
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  font-family: inherit;
+  background: var(--c-surface);
+  color: var(--c-text);
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.input:focus,
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--c-primary);
+  box-shadow: 0 0 0 3px var(--c-primary-light);
+}
+
+.input-group {
+  display: flex;
+  align-items: stretch;
+}
+.input-group .prefix {
+  display: flex;
+  align-items: center;
+  padding: 0 13px;
+  background: var(--c-surface-2);
+  border: 1.5px solid var(--c-border);
+  border-right: none;
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  font-weight: 600;
+  color: var(--c-muted);
+}
+.input-group input {
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  font-size: 14px;
+  user-select: none;
+}
+.checkbox input {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--c-primary);
+  cursor: pointer;
+}
+
+.error-text {
+  color: var(--c-danger);
+  font-size: 13px;
+  margin-top: 5px;
+}
+.hint-text {
+  color: var(--c-muted);
+  font-size: 13px;
+  margin-top: 5px;
+}
+
+/* ---- 表格 ---- */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.table th,
+.table td {
+  padding: 13px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--c-border);
+  font-size: 14px;
+}
+.table th {
+  color: var(--c-muted);
+  font-weight: 600;
+  background: var(--c-surface-2);
+}
+.table tr:hover td {
+  background: var(--c-surface-2);
+}
+
+/* ---- 分團照縮圖 ---- */
+.thumb {
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+/* ---- 標籤 ---- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.badge-success {
+  background: #d1fae5;
+  color: #047857;
+}
+.badge-warning {
+  background: #fef3c7;
+  color: #b45309;
+}
+.badge-info {
+  background: var(--c-primary-light);
+  color: var(--c-primary-dark);
+}
+.badge-danger {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+/* ---- Modal ---- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 22, 35, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  animation: fade 0.15s ease;
+}
+.modal {
+  background: var(--c-surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  width: 100%;
+  max-width: 420px;
+  padding: 28px;
+  text-align: center;
+  animation: pop 0.18s ease;
+}
+.modal h3 {
+  font-size: 20px;
+}
+.modal .modal-body {
+  color: var(--c-muted);
+  margin: 12px 0 22px;
+  line-height: 1.6;
+}
+.modal .modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(6px);
+  }
+}
+
+/* ---- 工具 ---- */
+.row {
+  display: flex;
+  gap: 16px;
+}
+.col {
+  flex: 1;
+}
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.text-muted {
+  color: var(--c-muted);
+}
+.text-center {
+  text-align: center;
+}
+.mt-1 {
+  margin-top: 8px;
+}
+.mt-2 {
+  margin-top: 16px;
+}
+.mt-3 {
+  margin-top: 24px;
+}
+.empty {
+  text-align: center;
+  color: var(--c-muted);
+  padding: 48px 16px;
+}
+.empty .emoji {
+  font-size: 40px;
+  display: block;
+  margin-bottom: 10px;
+}
+
+.tabs {
+  display: inline-flex;
+  background: var(--c-surface-2);
+  border-radius: 999px;
+  padding: 4px;
+  gap: 4px;
+}
+.tabs button {
+  border: none;
+  background: transparent;
+  padding: 8px 18px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--c-muted);
+}
+.tabs button.active {
+  background: var(--c-surface);
+  color: var(--c-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.option-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border: 1.5px solid var(--c-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-weight: 600;
+  background: var(--c-surface);
+  color: var(--c-text);
+  transition: all 0.12s ease;
+}
+.option-pill.active {
+  border-color: var(--c-primary);
+  background: var(--c-primary-light);
+  color: var(--c-primary-dark);
+}
+
+/* ---- Logo 徽章（黑底 CB 圖標） ---- */
+.logo-badge {
+  display: grid;
+  place-items: center;
+  background: var(--c-dark);
+  overflow: hidden;
+}
+.logo-badge img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}

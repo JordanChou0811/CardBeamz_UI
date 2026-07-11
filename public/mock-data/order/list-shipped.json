@@ -1,0 +1,23 @@
+{
+  "apid": "order",
+  "opid": "list-shipped",
+  "name": "已寄出查詢",
+  "returnCode": "0000",
+  "returnMsg": "成功",
+  "data": {
+    "total": 1,
+    "orders": [
+      {
+        "orderId": "ORD20260607005",
+        "memberId": "CBZ0000001",
+        "itemIds": ["ITM00000010"],
+        "shippingMethod": "cvs",
+        "cvsBrand": "seven",
+        "shippingFee": 60,
+        "status": "shipped",
+        "trackingNo": "TW1234567890",
+        "shippedAt": "2026-06-07T09:30:00.000Z"
+      }
+    ]
+  }
+}

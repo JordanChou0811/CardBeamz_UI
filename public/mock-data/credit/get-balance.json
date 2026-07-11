@@ -1,0 +1,12 @@
+{
+  "apid": "credit",
+  "opid": "get-balance",
+  "name": "團拆金餘額查詢",
+  "returnCode": "0000",
+  "returnMsg": "成功",
+  "data": {
+    "memberId": "CBZ0000001",
+    "credit": 1400,
+    "updatedAt": "2026-06-08T08:12:00.000Z"
+  }
+}

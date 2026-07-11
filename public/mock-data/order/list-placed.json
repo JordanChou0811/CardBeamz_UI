@@ -1,0 +1,21 @@
+{
+  "apid": "order",
+  "opid": "list-placed",
+  "name": "已下單查詢",
+  "returnCode": "0000",
+  "returnMsg": "成功",
+  "data": {
+    "total": 1,
+    "orders": [
+      {
+        "orderId": "ORD20260608001",
+        "memberId": "CBZ0000001",
+        "itemIds": ["ITM00000001"],
+        "shippingMethod": "home",
+        "shippingFee": 80,
+        "status": "placed",
+        "createdAt": "2026-06-08T08:15:00.000Z"
+      }
+    ]
+  }
+}

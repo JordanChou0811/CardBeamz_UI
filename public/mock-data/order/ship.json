@@ -1,0 +1,13 @@
+{
+  "apid": "order",
+  "opid": "ship",
+  "name": "出貨",
+  "returnCode": "0000",
+  "returnMsg": "出貨完成",
+  "data": {
+    "orderId": "ORD20260608001",
+    "status": "shipped",
+    "trackingNo": "TW9876543210",
+    "shippedAt": "2026-06-08T10:00:00.000Z"
+  }
+}

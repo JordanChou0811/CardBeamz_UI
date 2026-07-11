@@ -1,0 +1,39 @@
+{
+  "apid": "warehouse",
+  "opid": "list",
+  "name": "倉庫一覽",
+  "returnCode": "0000",
+  "returnMsg": "成功",
+  "data": {
+    "total": 3,
+    "items": [
+      {
+        "id": "ITM00000001",
+        "memberId": "CBZ0000001",
+        "groupCode": "CBZ01",
+        "name": "限定簽名卡 A",
+        "photo": "https://res.cloudinary.com/ddawye3go/image/upload/cardbeamz/members/CBZ0000001/card-a.jpg",
+        "status": "in_warehouse",
+        "createdAt": "2026-06-01T10:00:00.000Z"
+      },
+      {
+        "id": "ITM00000002",
+        "memberId": "CBZ0000001",
+        "groupCode": "CBZ02",
+        "name": "普卡 B",
+        "photo": "https://res.cloudinary.com/ddawye3go/image/upload/cardbeamz/members/CBZ0000001/card-b.jpg",
+        "status": "in_warehouse",
+        "createdAt": "2026-06-02T10:00:00.000Z"
+      },
+      {
+        "id": "ITM00000003",
+        "memberId": "CBZ0000001",
+        "groupCode": "CBZ01",
+        "name": "閃卡 C",
+        "photo": "https://res.cloudinary.com/ddawye3go/image/upload/cardbeamz/members/CBZ0000001/card-c.jpg",
+        "status": "in_warehouse",
+        "createdAt": "2026-06-03T10:00:00.000Z"
+      }
+    ]
+  }
+}

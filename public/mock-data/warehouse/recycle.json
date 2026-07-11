@@ -1,0 +1,12 @@
+{
+  "apid": "warehouse",
+  "opid": "recycle",
+  "name": "回收卡片",
+  "returnCode": "0000",
+  "returnMsg": "回收成功",
+  "data": {
+    "itemId": "ITM00000002",
+    "status": "recycled",
+    "recycledAt": "2026-06-08T08:10:00.000Z"
+  }
+}

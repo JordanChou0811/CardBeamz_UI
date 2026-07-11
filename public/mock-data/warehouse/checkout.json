@@ -1,0 +1,15 @@
+{
+  "apid": "warehouse",
+  "opid": "checkout",
+  "name": "結帳出貨申請",
+  "returnCode": "0000",
+  "returnMsg": "已建立訂單",
+  "data": {
+    "orderId": "ORD20260608001",
+    "itemIds": ["ITM00000001"],
+    "shippingMethod": "home",
+    "shippingFee": 80,
+    "status": "placed",
+    "createdAt": "2026-06-08T08:15:00.000Z"
+  }
+}

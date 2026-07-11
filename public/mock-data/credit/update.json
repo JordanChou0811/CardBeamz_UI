@@ -1,0 +1,15 @@
+{
+  "apid": "credit",
+  "opid": "update",
+  "name": "團拆金餘額修改",
+  "returnCode": "0000",
+  "returnMsg": "餘額已更新",
+  "data": {
+    "memberId": "CBZ0000001",
+    "creditBefore": 1400,
+    "amount": -200,
+    "creditAfter": 1200,
+    "reason": "管理員調整",
+    "updatedAt": "2026-06-08T11:00:00.000Z"
+  }
+}

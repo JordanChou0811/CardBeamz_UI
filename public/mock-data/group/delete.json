@@ -1,0 +1,11 @@
+{
+  "apid": "group",
+  "opid": "delete",
+  "name": "刪除團拆",
+  "returnCode": "0000",
+  "returnMsg": "刪除成功",
+  "data": {
+    "id": "GRP-0003",
+    "deletedAt": "2026-06-08T08:30:00.000Z"
+  }
+}

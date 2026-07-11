@@ -1,0 +1,13 @@
+{
+  "apid": "notify",
+  "opid": "send",
+  "name": "發送通知（Email / LINE）",
+  "returnCode": "0000",
+  "returnMsg": "通知已發送",
+  "data": {
+    "memberId": "CBZ0000001",
+    "channels": ["email", "line"],
+    "subject": "您的訂單已出貨",
+    "sentAt": "2026-06-08T10:05:00.000Z"
+  }
+}
