@@ -53,6 +53,22 @@
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true
+            },
+            "mock": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            },
+            "api": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true,
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.api.ts"
+                }
+              ]
             }
           },
           "defaultConfiguration": "production"
@@ -65,9 +81,15 @@
             },
             "development": {
               "buildTarget": "cardbeamz:build:development"
+            },
+            "mock": {
+              "buildTarget": "cardbeamz:build:mock"
+            },
+            "api": {
+              "buildTarget": "cardbeamz:build:api"
             }
           },
-          "defaultConfiguration": "development"
+          "defaultConfiguration": "mock"
         },
         "extract-i18n": {
           "builder": "@angular/build:extract-i18n"

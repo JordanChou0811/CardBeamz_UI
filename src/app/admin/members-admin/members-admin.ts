@@ -18,7 +18,6 @@ import { TranslatePipe } from '../../services/translate.pipe';
             <th>{{ 'amembers.no' | t }}</th>
             <th>{{ 'common.name' | t }}</th>
             <th>{{ 'amembers.accountPhone' | t }}</th>
-            <th>{{ 'common.password' | t }}</th>
             <th>{{ 'amembers.credit' | t }}</th>
             <th style="width:120px">{{ 'amembers.action' | t }}</th>
           </tr>
@@ -29,7 +28,6 @@ import { TranslatePipe } from '../../services/translate.pipe';
               <td><b>{{ m.id }}</b></td>
               <td>{{ m.name }}</td>
               <td>{{ m.account }}</td>
-              <td>{{ m.password }}</td>
               <td><b class="credit">{{ m.credit }} {{ 'common.yuan' | t }}</b></td>
               <td>
                 <button class="btn btn-outline btn-sm" (click)="openEdit(m)">{{ 'amembers.editCredit' | t }}</button>
@@ -83,10 +81,10 @@ export class MembersAdmin {
     this.editing.set(m);
   }
 
-  saveCredit() {
+  async saveCredit() {
     const m = this.editing();
     if (m) {
-      this.data.updateMember(m.id, { credit: Number(this.amount) || 0 });
+      await this.data.updateMemberCredit(m.id, Number(this.amount) || 0);
     }
     this.editing.set(null);
   }

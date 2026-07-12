@@ -332,10 +332,10 @@ export class Warehouse {
   askRecycle(it: WarehouseItem) {
     this.recycleItem.set(it);
   }
-  confirmRecycle() {
+  async confirmRecycle() {
     const it = this.recycleItem();
     if (it) {
-      this.data.recycle(it.id);
+      await this.data.recycle(it.id);
       this.dropFromSelection(it.id);
     }
     this.recycleItem.set(null);
@@ -345,10 +345,10 @@ export class Warehouse {
   askExchange(it: WarehouseItem) {
     this.exchangeItem.set(it);
   }
-  confirmExchange() {
+  async confirmExchange() {
     const it = this.exchangeItem();
     if (it) {
-      this.data.exchange(it.id);
+      await this.data.exchange(it.id);
       this.dropFromSelection(it.id);
     }
     this.exchangeItem.set(null);
@@ -365,7 +365,7 @@ export class Warehouse {
     this.setMethod('cvs');
   }
 
-  checkout() {
+  async checkout() {
     this.error.set('');
     const m = this.method();
     const f = this.form;
@@ -381,7 +381,7 @@ export class Warehouse {
     }
 
     const ids = [...this.selected()];
-    this.data.checkout(this.memberId, ids, { ...f, method: m });
+    await this.data.checkout(this.memberId, ids, { ...f, method: m });
     this.selected.set(new Set());
     this.router.navigate(['/member/orders']);
   }

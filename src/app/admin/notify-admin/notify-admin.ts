@@ -127,24 +127,43 @@ export class NotifyAdmin {
 
   memberCount = computed(() => this.data.members().filter((m) => m.role === 'member').length);
 
-  send() {
+  async send() {
     this.error.set('');
     if (!this.message.trim()) {
       this.error.set('notify.errContent');
       return;
     }
-    const targetName =
+    const channel = this.channel();
+    const members =
       this.target === 'all'
-        ? `${this.i18n.t('notify.allMembers')}（${this.memberCount()}）`
-        : this.data.findMember(this.target)?.name + '（' + this.target + '）';
+        ? this.data.members().filter((m) => m.role === 'member')
+        : this.data.members().filter((m) => m.id === this.target);
 
-    const log: SentLog = {
-      channel: this.channel(),
-      target: targetName ?? this.target,
-      message: this.message.trim(),
-      time: new Date().toLocaleString('zh-TW'),
-    };
-    this.logs.update((arr) => [log, ...arr]);
-    this.message = '';
+    try {
+      for (const m of members) {
+        await this.data.sendNotify({
+          memberId: m.id,
+          channels: [channel],
+          subject: 'CardBeamz 通知',
+          body: this.message.trim(),
+        });
+      }
+      const targetName =
+        this.target === 'all'
+          ? `${this.i18n.t('notify.allMembers')}（${this.memberCount()}）`
+          : this.data.findMember(this.target)?.name + '（' + this.target + '）';
+      this.logs.update((arr) => [
+        {
+          channel,
+          target: targetName ?? this.target,
+          message: this.message.trim(),
+          time: new Date().toLocaleString('zh-TW'),
+        },
+        ...arr,
+      ]);
+      this.message = '';
+    } catch {
+      this.error.set('notify.errSend');
+    }
   }
 }

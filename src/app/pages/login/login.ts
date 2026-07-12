@@ -117,13 +117,13 @@ export class Login {
   remember = false;
   error = signal('');
 
-  submit() {
+  async submit() {
     this.error.set('');
     if (!this.account.trim() || !this.password.trim()) {
       this.error.set('login.errRequired');
       return;
     }
-    const res = this.auth.login(this.account.trim(), this.password);
+    const res = await this.auth.login(this.account.trim(), this.password);
     if (!res.ok) {
       this.error.set(res.message ?? 'login.errFail');
       return;

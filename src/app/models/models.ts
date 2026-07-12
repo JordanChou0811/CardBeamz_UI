@@ -14,8 +14,8 @@ export interface Member {
   account: string;
   /** 姓名 */
   name: string;
-  /** 密碼 */
-  password: string;
+  /** 密碼（僅本地／註冊用；後端登入後不回傳） */
+  password?: string;
   /** 團拆金餘額 */
   credit: number;
   role: Role;

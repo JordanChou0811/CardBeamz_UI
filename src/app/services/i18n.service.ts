@@ -65,6 +65,7 @@ const DICT: Dict = {
   'login.errNoAccount': { zh: '查無此帳號', en: 'Account not found' },
   'login.errWrongPwd': { zh: '密碼錯誤', en: 'Incorrect password' },
   'login.errFail': { zh: '登入失敗', en: 'Login failed' },
+  'login.errOffline': { zh: '無法連線後端，請先啟動 API（localhost:8080）', en: 'Cannot reach API. Start backend on localhost:8080' },
 
   // ---- 申請會員 ----
   'register.title': { zh: '申請會員', en: 'Sign Up' },
@@ -93,6 +94,8 @@ const DICT: Dict = {
   'register.errCode': { zh: '驗證碼錯誤', en: 'Incorrect verification code' },
   'register.errPwd': { zh: '密碼為必填', en: 'Password is required' },
   'register.errDup': { zh: '此手機號碼已被註冊', en: 'This phone is already registered' },
+  'register.errSend': { zh: '驗證碼發送失敗', en: 'Failed to send verification code' },
+  'register.errFail': { zh: '註冊失敗', en: 'Registration failed' },
 
   // ---- 會員版面 ----
   'nav.warehouse': { zh: '我的倉庫', en: 'My Warehouse' },
@@ -232,6 +235,7 @@ const DICT: Dict = {
   'notify.log': { zh: '發送紀錄', en: 'Send Log' },
   'notify.emptyLog': { zh: '尚無發送紀錄', en: 'No send records yet' },
   'notify.errContent': { zh: '請輸入通知內容', en: 'Please enter a message' },
+  'notify.errSend': { zh: '通知發送失敗', en: 'Failed to send notification' },
 
   // ---- 團拆管理 ----
   'admin.nav.groups': { zh: '團拆管理', en: 'Groups' },

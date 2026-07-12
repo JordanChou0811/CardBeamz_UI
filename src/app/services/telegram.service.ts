@@ -1,42 +1,101 @@
 import { Injectable } from '@angular/core';
+import { environment } from '../../environments/environment';
 
 /**
- * 模擬 API 服務。
- * 每支 API 以「功能 / 動作」分層存放於 /mock-data/{apid}/{opid}.json：
- *   - apid = 功能（一支 API），例如 member、warehouse、order…（資料夾）
- *   - opid = 該功能底下的動作，例如 login、register、checkout…（檔案）
- * 每個 JSON 檔的內容就是該 API 的 Response（回應內容）。
+ * API 客戶端。
+ * - mock：讀取 /mock-data/{apid}/{opid}.json（模擬電文）
+ * - api：呼叫 http://localhost:8080/api/{apid}/{opid}
  */
 export interface ApiResponse<TData = unknown> {
-  /** 功能代號（資料夾名） */
   apid: string;
-  /** 動作代號（檔名） */
   opid: string;
-  /** 動作名稱 */
   name: string;
-  /** 回應碼，0000 代表成功 */
   returnCode: string;
-  /** 回應訊息 */
   returnMsg: string;
-  /** 實際資料 */
   data: TData;
+}
+
+export class ApiError extends Error {
+  constructor(
+    public readonly returnCode: string,
+    message: string,
+    public readonly response?: ApiResponse
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
 }
 
 @Injectable({ providedIn: 'root' })
 export class TelegramService {
-  private base = 'mock-data';
+  readonly useApi = environment.useApi;
+  private base = environment.apiBaseUrl;
 
-  /**
-   * 呼叫一支模擬 API，回傳對應的 Response。
-   * @param apid 功能（資料夾），例如 'member'
-   * @param opid 動作（檔名），例如 'login'
-   */
-  async call<TData = unknown>(apid: string, opid: string): Promise<ApiResponse<TData>> {
-    const url = `${this.base}/${apid}/${opid}.json`;
-    const res = await fetch(url);
-    if (!res.ok) {
-      throw new Error(`API 不存在：${apid}/${opid}`);
+  async get<TData = unknown>(
+    apid: string,
+    opid: string,
+    params?: Record<string, string | number | undefined | null>
+  ): Promise<ApiResponse<TData>> {
+    if (!this.useApi) {
+      return this.requestMock<TData>(apid, opid);
     }
-    return (await res.json()) as ApiResponse<TData>;
+    const qs = new URLSearchParams();
+    if (params) {
+      for (const [k, v] of Object.entries(params)) {
+        if (v !== undefined && v !== null && v !== '') qs.set(k, String(v));
+      }
+    }
+    const q = qs.toString();
+    const url = `${this.base}/${apid}/${opid}${q ? `?${q}` : ''}`;
+    return this.request<TData>(url, { method: 'GET' });
+  }
+
+  async post<TData = unknown>(
+    apid: string,
+    opid: string,
+    body?: unknown
+  ): Promise<ApiResponse<TData>> {
+    if (!this.useApi) {
+      return this.requestMock<TData>(apid, opid);
+    }
+    const url = `${this.base}/${apid}/${opid}`;
+    return this.request<TData>(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  }
+
+  async call<TData = unknown>(apid: string, opid: string): Promise<ApiResponse<TData>> {
+    return this.get<TData>(apid, opid);
+  }
+
+  private async requestMock<TData>(apid: string, opid: string): Promise<ApiResponse<TData>> {
+    const url = `${this.base}/${apid}/${opid}.json`;
+    return this.request<TData>(url, { method: 'GET' });
+  }
+
+  private async request<TData>(url: string, init: RequestInit): Promise<ApiResponse<TData>> {
+    let res: Response;
+    try {
+      res = await fetch(url, init);
+    } catch {
+      throw new ApiError(
+        '9998',
+        this.useApi
+          ? '無法連線後端，請確認已啟動 http://localhost:8080'
+          : `無法讀取模擬電文：${url}`
+      );
+    }
+    let json: ApiResponse<TData>;
+    try {
+      json = (await res.json()) as ApiResponse<TData>;
+    } catch {
+      throw new ApiError('9997', `回應格式錯誤（HTTP ${res.status}）`);
+    }
+    if (!res.ok || json.returnCode !== '0000') {
+      throw new ApiError(json.returnCode || String(res.status), json.returnMsg || '請求失敗', json);
+    }
+    return json;
   }
 }

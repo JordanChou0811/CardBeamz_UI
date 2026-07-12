@@ -1,4 +1,4 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, Injector, signal } from '@angular/core';
 import {
   Group,
   Member,
@@ -8,6 +8,9 @@ import {
   SHIPPING_FEE,
   WarehouseItem,
 } from '../models/models';
+import { environment } from '../../environments/environment';
+import { AuthService } from './auth.service';
+import { TelegramService } from './telegram.service';
 
 const KEYS = {
   members: 'cbz_members',
@@ -44,24 +47,101 @@ export class DataService {
   readonly orders = signal<Order[]>([]);
   readonly news = signal<NewsItem[]>([]);
   readonly groups = signal<Group[]>([]);
+  readonly ready = signal(false);
+  readonly loadError = signal('');
 
-  constructor() {
-    this.seedIfEmpty();
-    this.members.set(load<Member[]>(KEYS.members, []));
-    this.items.set(load<WarehouseItem[]>(KEYS.items, []));
-    this.orders.set(load<Order[]>(KEYS.orders, []));
-    this.news.set(load<NewsItem[]>(KEYS.news, []));
-    this.groups.set(load<Group[]>(KEYS.groups, []));
+  constructor(
+    private api: TelegramService,
+    private injector: Injector
+  ) {
+    if (environment.useApi) {
+      void this.refreshAll();
+    } else {
+      this.seedIfEmpty();
+      this.members.set(load(KEYS.members, []));
+      this.items.set(load(KEYS.items, []));
+      this.orders.set(load(KEYS.orders, []));
+      this.news.set(load(KEYS.news, []));
+      this.groups.set(load(KEYS.groups, []));
+      this.ready.set(true);
+    }
   }
 
-  // ----- 會員編號 -----
-  private nextMemberNo(): string {
-    const seq = load<number>(KEYS.seq, 0) + 1;
-    save(KEYS.seq, seq);
-    return 'CBZ' + seq.toString().padStart(7, '0');
+  private auth(): AuthService {
+    return this.injector.get(AuthService);
   }
 
-  // ----- 會員 -----
+  // ========== API mode ==========
+  async refreshAll(): Promise<void> {
+    this.loadError.set('');
+    try {
+      await Promise.all([
+        this.refreshMembers(),
+        this.refreshItems(),
+        this.refreshOrders(),
+        this.refreshNews(),
+        this.refreshGroups(),
+      ]);
+      this.ready.set(true);
+    } catch (e) {
+      this.loadError.set(e instanceof Error ? e.message : '載入失敗');
+      this.ready.set(true);
+    }
+  }
+
+  async refreshMembers(): Promise<void> {
+    if (!environment.useApi) return;
+    const res = await this.api.get<{ members: Member[] }>('member', 'list');
+    this.members.set(res.data.members ?? []);
+  }
+
+  async refreshItems(memberId?: string, status?: string): Promise<void> {
+    if (!environment.useApi) return;
+    const res = await this.api.get<{ items: WarehouseItem[] }>('warehouse', 'list', {
+      memberId,
+      status,
+    });
+    if (!memberId && !status) {
+      this.items.set(res.data.items ?? []);
+      return;
+    }
+    const incoming = res.data.items ?? [];
+    const others = this.items().filter((i) => {
+      if (memberId && status) return !(i.memberId === memberId && i.status === status);
+      if (memberId) return i.memberId !== memberId;
+      return i.status !== status;
+    });
+    this.items.set([...incoming, ...others]);
+  }
+
+  async refreshOrders(memberId?: string): Promise<void> {
+    if (!environment.useApi) return;
+    const [placed, shipped] = await Promise.all([
+      this.api.get<{ orders: Order[] }>('order', 'list-placed', { memberId }),
+      this.api.get<{ orders: Order[] }>('order', 'list-shipped', { memberId }),
+    ]);
+    const all = [...(placed.data.orders ?? []), ...(shipped.data.orders ?? [])];
+    if (!memberId) {
+      this.orders.set(all);
+      return;
+    }
+    const others = this.orders().filter((o) => o.memberId !== memberId);
+    this.orders.set([...all, ...others]);
+  }
+
+  async refreshNews(): Promise<void> {
+    if (!environment.useApi) return;
+    const res = await this.api.get<{ news: NewsItem[] }>('news', 'list');
+    this.news.set(res.data.news ?? []);
+  }
+
+  async refreshGroups(): Promise<void> {
+    if (!environment.useApi) return;
+    const res = await this.api.get<{ groups: Group[] }>('group', 'list');
+    this.groups.set(res.data.groups ?? []);
+  }
+
+  // ========== 共用查詢 ==========
   findByAccount(account: string): Member | undefined {
     return this.members().find((m) => m.account === account);
   }
@@ -70,35 +150,6 @@ export class DataService {
     return this.members().find((m) => m.id === id);
   }
 
-  createMember(data: { account: string; name: string; password: string }): Member {
-    const member: Member = {
-      id: this.nextMemberNo(),
-      account: data.account,
-      name: data.name,
-      password: data.password,
-      credit: 0,
-      role: 'member',
-      createdAt: new Date().toISOString(),
-    };
-    const next = [...this.members(), member];
-    this.members.set(next);
-    save(KEYS.members, next);
-    return member;
-  }
-
-  updateMember(id: string, patch: Partial<Member>): void {
-    const next = this.members().map((m) => (m.id === id ? { ...m, ...patch } : m));
-    this.members.set(next);
-    save(KEYS.members, next);
-  }
-
-  addCredit(memberId: string, amount: number): void {
-    const m = this.findMember(memberId);
-    if (!m) return;
-    this.updateMember(memberId, { credit: m.credit + amount });
-  }
-
-  // ----- 倉庫 -----
   itemsOf(memberId: string): WarehouseItem[] {
     return this.items().filter((i) => i.memberId === memberId);
   }
@@ -107,17 +158,71 @@ export class DataService {
     return this.itemsOf(memberId).filter((i) => i.status === 'in_warehouse');
   }
 
-  private setItemStatus(ids: string[], status: WarehouseItem['status']): void {
-    const now = new Date().toISOString();
-    const next = this.items().map((i) =>
-      ids.includes(i.id) ? { ...i, status, updatedAt: now } : i
-    );
-    this.items.set(next);
-    save(KEYS.items, next);
+  ordersOf(memberId: string): Order[] {
+    return this.orders().filter((o) => o.memberId === memberId);
   }
 
-  /** 後台分派卡片給會員（一次可發多張），狀態為 in_warehouse */
-  assignItems(
+  // ========== 會員 ==========
+  async createMember(data: {
+    account: string;
+    name: string;
+    password: string;
+    verifyCode: string;
+  }): Promise<Member> {
+    if (!environment.useApi) {
+      if (this.findByAccount(data.account)) throw new Error('帳號已存在');
+      const member: Member = {
+        id: this.nextMemberNo(),
+        account: data.account,
+        name: data.name,
+        password: data.password,
+        credit: 0,
+        role: 'member',
+        createdAt: new Date().toISOString(),
+      };
+      const next = [...this.members(), member];
+      this.members.set(next);
+      save(KEYS.members, next);
+      return member;
+    }
+    const res = await this.api.post<{ member: Member }>('member', 'register', data);
+    await this.refreshMembers();
+    return res.data.member;
+  }
+
+  async sendVerifyCode(account: string): Promise<string> {
+    if (!environment.useApi) {
+      return String(100000 + Math.floor(Math.random() * 900000));
+    }
+    const res = await this.api.post<{ debugCode?: string }>('member', 'send-verify-code', {
+      account,
+    });
+    return res.data.debugCode ?? '';
+  }
+
+  async changePassword(memberId: string, oldPassword: string, newPassword: string): Promise<void> {
+    if (!environment.useApi) {
+      const m = this.findMember(memberId);
+      if (!m || m.password !== oldPassword) throw new Error('舊密碼錯誤');
+      this.patchMemberLocal(memberId, { password: newPassword });
+      return;
+    }
+    await this.api.post('member', 'change-password', { memberId, oldPassword, newPassword });
+  }
+
+  async updateMemberCredit(id: string, credit: number): Promise<void> {
+    if (!environment.useApi) {
+      this.patchMemberLocal(id, { credit });
+      this.auth().patchCurrentUser({ credit });
+      return;
+    }
+    await this.api.post('credit', 'update', { memberId: id, credit });
+    await this.refreshMembers();
+    if (this.auth().currentUser()?.id === id) await this.auth().refreshMe(id);
+  }
+
+  // ========== 倉庫 ==========
+  async assignItems(
     memberId: string,
     card: {
       name: string;
@@ -127,142 +232,256 @@ export class DataService {
       cardNo?: string;
     },
     quantity = 1
-  ): WarehouseItem[] {
-    const now = new Date().toISOString();
-    const created: WarehouseItem[] = [];
-    const count = Math.max(1, Math.floor(quantity) || 1);
-    for (let i = 0; i < count; i += 1) {
-      created.push({
-        id: newId('ITEM'),
-        memberId,
-        cbz: card.name,
-        cardName: card.cardName?.trim() || undefined,
-        cardNo: card.cardNo?.trim() || undefined,
-        groupPhoto: card.photo,
-        exchangeValue: card.exchangeValue,
-        status: 'in_warehouse',
-        updatedAt: now,
-      });
+  ): Promise<WarehouseItem[]> {
+    if (!environment.useApi) {
+      const now = new Date().toISOString();
+      const created: WarehouseItem[] = [];
+      const count = Math.max(1, Math.floor(quantity) || 1);
+      for (let i = 0; i < count; i++) {
+        created.push({
+          id: newId('ITEM'),
+          memberId,
+          cbz: card.name,
+          cardName: card.cardName?.trim() || undefined,
+          cardNo: card.cardNo?.trim() || undefined,
+          groupPhoto: card.photo,
+          exchangeValue: card.exchangeValue,
+          status: 'in_warehouse',
+          updatedAt: now,
+        });
+      }
+      const next = [...this.items(), ...created];
+      this.items.set(next);
+      save(KEYS.items, next);
+      return created;
     }
-    const next = [...this.items(), ...created];
-    this.items.set(next);
-    save(KEYS.items, next);
-    return created;
-  }
-
-  /** 後台收回（刪除）一張卡片 */
-  removeItem(itemId: string): void {
-    const next = this.items().filter((i) => i.id !== itemId);
-    this.items.set(next);
-    save(KEYS.items, next);
-  }
-
-  recycle(itemId: string): void {
-    this.setItemStatus([itemId], 'recycled');
-  }
-
-  exchange(itemId: string): void {
-    const item = this.items().find((i) => i.id === itemId);
-    if (!item) return;
-    this.setItemStatus([itemId], 'exchanged');
-    this.addCredit(item.memberId, item.exchangeValue);
-  }
-
-  // ----- 訂單 -----
-  ordersOf(memberId: string): Order[] {
-    return this.orders().filter((o) => o.memberId === memberId);
-  }
-
-  checkout(memberId: string, itemIds: string[], shipping: ShippingInfo): Order {
-    const items = this.items().filter((i) => itemIds.includes(i.id));
-    const order: Order = {
-      id: newId('ORD'),
+    const res = await this.api.post<WarehouseItem[]>('warehouse', 'assign', {
       memberId,
-      items: items.map((i) => ({ ...i, status: 'ordered' })),
-      shipping,
-      total: SHIPPING_FEE[shipping.method],
-      status: 'placed',
-      createdAt: new Date().toISOString(),
-    };
-    const nextOrders = [order, ...this.orders()];
-    this.orders.set(nextOrders);
-    save(KEYS.orders, nextOrders);
-    this.setItemStatus(itemIds, 'ordered');
-    return order;
+      cbz: card.name,
+      groupPhoto: card.photo,
+      exchangeValue: card.exchangeValue,
+      cardName: card.cardName,
+      cardNo: card.cardNo,
+      quantity,
+    });
+    await this.refreshItems();
+    return res.data ?? [];
   }
 
-  shipOrder(orderId: string): void {
-    const now = new Date().toISOString();
-    const next = this.orders().map((o) =>
-      o.id === orderId ? { ...o, status: 'shipped' as const, shippedAt: now } : o
-    );
-    this.orders.set(next);
-    save(KEYS.orders, next);
-    const order = next.find((o) => o.id === orderId);
-    if (order) {
-      this.setItemStatus(
-        order.items.map((i) => i.id),
-        'shipped'
-      );
+  async removeItem(itemId: string): Promise<void> {
+    if (!environment.useApi) {
+      const next = this.items().filter((i) => i.id !== itemId);
+      this.items.set(next);
+      save(KEYS.items, next);
+      return;
     }
+    await this.api.post('warehouse', 'remove', { itemId });
+    this.items.update((list) => list.filter((i) => i.id !== itemId));
   }
 
-  // ----- 團（團拆管理） -----
-  addGroup(data: Omit<Group, 'id' | 'createdAt'>): void {
-    const group: Group = {
-      ...data,
-      id: newId('GRP'),
-      createdAt: new Date().toISOString(),
-    };
-    const next = [group, ...this.groups()];
-    this.groups.set(next);
-    save(KEYS.groups, next);
+  async recycle(itemId: string): Promise<void> {
+    if (!environment.useApi) {
+      this.setItemStatusLocal([itemId], 'recycled');
+      return;
+    }
+    await this.api.post('warehouse', 'recycle', { itemId });
+    await this.refreshItems();
   }
 
-  updateGroup(id: string, patch: Partial<Group>): void {
-    const next = this.groups().map((g) => (g.id === id ? { ...g, ...patch } : g));
-    this.groups.set(next);
-    save(KEYS.groups, next);
+  async exchange(itemId: string): Promise<void> {
+    if (!environment.useApi) {
+      const item = this.items().find((i) => i.id === itemId);
+      if (!item) return;
+      this.setItemStatusLocal([itemId], 'exchanged');
+      const m = this.findMember(item.memberId);
+      if (m) {
+        const credit = m.credit + item.exchangeValue;
+        this.patchMemberLocal(item.memberId, { credit });
+        this.auth().patchCurrentUser({ credit });
+      }
+      return;
+    }
+    await this.api.post('warehouse', 'exchange', { itemId });
+    await this.refreshItems();
+    await this.auth().refreshMe();
+    await this.refreshMembers();
   }
 
-  deleteGroup(id: string): void {
-    const next = this.groups().filter((g) => g.id !== id);
-    this.groups.set(next);
-    save(KEYS.groups, next);
+  async checkout(memberId: string, itemIds: string[], shipping: ShippingInfo): Promise<Order> {
+    if (!environment.useApi) {
+      const items = this.items().filter((i) => itemIds.includes(i.id));
+      const order: Order = {
+        id: newId('ORD'),
+        memberId,
+        items: items.map((i) => ({ ...i, status: 'ordered' })),
+        shipping,
+        total: SHIPPING_FEE[shipping.method],
+        status: 'placed',
+        createdAt: new Date().toISOString(),
+      };
+      const nextOrders = [order, ...this.orders()];
+      this.orders.set(nextOrders);
+      save(KEYS.orders, nextOrders);
+      this.setItemStatusLocal(itemIds, 'ordered');
+      return order;
+    }
+    const res = await this.api.post<{
+      orderId: string;
+      shippingFee: number;
+      status: string;
+      createdAt: string;
+    }>('warehouse', 'checkout', {
+      memberId,
+      itemIds,
+      shipping: { ...shipping },
+    });
+    await this.refreshItems();
+    await this.refreshOrders();
+    return (
+      this.orders().find((o) => o.id === res.data.orderId) ?? {
+        id: res.data.orderId,
+        memberId,
+        items: this.items().filter((i) => itemIds.includes(i.id)),
+        shipping,
+        total: res.data.shippingFee,
+        status: 'placed',
+        createdAt: res.data.createdAt,
+      }
+    );
   }
 
-  // ----- 消息 -----
-  addNews(data: Omit<NewsItem, 'id' | 'createdAt'>): void {
-    const item: NewsItem = {
-      ...data,
-      id: newId('NEWS'),
-      createdAt: new Date().toISOString(),
-    };
-    const next = [item, ...this.news()];
-    this.news.set(next);
-    save(KEYS.news, next);
+  // ========== 訂單 ==========
+  async shipOrder(orderId: string): Promise<void> {
+    if (!environment.useApi) {
+      const now = new Date().toISOString();
+      const next = this.orders().map((o) =>
+        o.id === orderId ? { ...o, status: 'shipped' as const, shippedAt: now } : o
+      );
+      this.orders.set(next);
+      save(KEYS.orders, next);
+      const order = next.find((o) => o.id === orderId);
+      if (order) this.setItemStatusLocal(order.items.map((i) => i.id), 'shipped');
+      return;
+    }
+    await this.api.post('order', 'ship', { orderId });
+    await this.refreshOrders();
+    await this.refreshItems();
   }
 
-  updateNews(id: string, patch: Partial<NewsItem>): void {
-    const next = this.news().map((n) => (n.id === id ? { ...n, ...patch } : n));
-    this.news.set(next);
-    save(KEYS.news, next);
+  // ========== 團 ==========
+  async addGroup(data: Omit<Group, 'id' | 'createdAt'>): Promise<void> {
+    if (!environment.useApi) {
+      const group: Group = { ...data, id: newId('GRP'), createdAt: new Date().toISOString() };
+      const next = [group, ...this.groups()];
+      this.groups.set(next);
+      save(KEYS.groups, next);
+      return;
+    }
+    await this.api.post('group', 'create', data);
+    await this.refreshGroups();
   }
 
-  deleteNews(id: string): void {
-    const next = this.news().filter((n) => n.id !== id);
-    this.news.set(next);
-    save(KEYS.news, next);
+  async updateGroup(id: string, patch: Partial<Group>): Promise<void> {
+    if (!environment.useApi) {
+      const next = this.groups().map((g) => (g.id === id ? { ...g, ...patch } : g));
+      this.groups.set(next);
+      save(KEYS.groups, next);
+      return;
+    }
+    await this.api.post('group', 'update', { id, ...patch });
+    await this.refreshGroups();
   }
 
-  // ----- 種子資料 -----
+  async deleteGroup(id: string): Promise<void> {
+    if (!environment.useApi) {
+      const next = this.groups().filter((g) => g.id !== id);
+      this.groups.set(next);
+      save(KEYS.groups, next);
+      return;
+    }
+    await this.api.post('group', 'delete', { id });
+    await this.refreshGroups();
+  }
+
+  // ========== 消息 ==========
+  async addNews(data: Omit<NewsItem, 'id' | 'createdAt'>): Promise<void> {
+    if (!environment.useApi) {
+      const item: NewsItem = { ...data, id: newId('NEWS'), createdAt: new Date().toISOString() };
+      const next = [item, ...this.news()];
+      this.news.set(next);
+      save(KEYS.news, next);
+      return;
+    }
+    await this.api.post('news', 'save', data);
+    await this.refreshNews();
+  }
+
+  async updateNews(id: string, patch: Partial<NewsItem>): Promise<void> {
+    if (!environment.useApi) {
+      const next = this.news().map((n) => (n.id === id ? { ...n, ...patch } : n));
+      this.news.set(next);
+      save(KEYS.news, next);
+      return;
+    }
+    const cur = this.news().find((n) => n.id === id);
+    await this.api.post('news', 'save', {
+      id,
+      title: patch.title ?? cur?.title,
+      content: patch.content ?? cur?.content,
+      category: patch.category ?? cur?.category,
+    });
+    await this.refreshNews();
+  }
+
+  async deleteNews(id: string): Promise<void> {
+    if (!environment.useApi) {
+      const next = this.news().filter((n) => n.id !== id);
+      this.news.set(next);
+      save(KEYS.news, next);
+      return;
+    }
+    await this.api.post('news', 'delete', { id });
+    await this.refreshNews();
+  }
+
+  async sendNotify(payload: {
+    memberId: string;
+    channels: string[];
+    subject: string;
+    body: string;
+  }): Promise<void> {
+    if (!environment.useApi) return; // 模擬模式只記前端 log
+    await this.api.post('notify', 'send', payload);
+  }
+
+  // ========== local helpers ==========
+  private nextMemberNo(): string {
+    const seq = load<number>(KEYS.seq, 0) + 1;
+    save(KEYS.seq, seq);
+    return 'CBZ' + seq.toString().padStart(7, '0');
+  }
+
+  private patchMemberLocal(id: string, patch: Partial<Member>): void {
+    const next = this.members().map((m) => (m.id === id ? { ...m, ...patch } : m));
+    this.members.set(next);
+    save(KEYS.members, next);
+  }
+
+  private setItemStatusLocal(ids: string[], status: WarehouseItem['status']): void {
+    const now = new Date().toISOString();
+    const next = this.items().map((i) =>
+      ids.includes(i.id) ? { ...i, status, updatedAt: now } : i
+    );
+    this.items.set(next);
+    save(KEYS.items, next);
+  }
+
   private seedIfEmpty(): void {
     if (localStorage.getItem(KEYS.members)) return;
 
     save(KEYS.seq, 0);
-    const adminNo = 'CBZ0000000';
     const admin: Member = {
-      id: adminNo,
+      id: 'CBZ0000000',
       account: '0900000000',
       name: '系統管理員',
       password: 'admin',
@@ -270,7 +489,6 @@ export class DataService {
       role: 'admin',
       createdAt: new Date().toISOString(),
     };
-
     const demo: Member = {
       id: this.nextMemberNo(),
       account: '0912345678',
@@ -280,7 +498,6 @@ export class DataService {
       role: 'member',
       createdAt: new Date().toISOString(),
     };
-
     save(KEYS.members, [admin, demo]);
 
     const palette = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6'];
@@ -291,7 +508,7 @@ export class DataService {
       cbz: `CBZ${(idx + 1).toString().padStart(2, '0')} 團`,
       groupPhoto: palette[idx % palette.length],
       exchangeValue: exchangeValues[idx],
-      status: 'in_warehouse',
+      status: 'in_warehouse' as const,
       updatedAt: new Date().toISOString(),
     }));
     save(KEYS.items, items);
@@ -305,31 +522,22 @@ export class DataService {
       createdAt: new Date().toISOString(),
     }));
     save(KEYS.groups, groups);
-
     save(KEYS.orders, []);
-
-    const news: NewsItem[] = [
+    save(KEYS.news, [
       {
         id: newId('NEWS'),
         title: '歡迎使用 CardBeamz 卡牌倉儲服務',
         content: '我們提供卡牌寄倉、回收、換團拆金與代寄服務，立即加入會員體驗！',
-        category: 'service',
+        category: 'service' as const,
         createdAt: new Date().toISOString(),
       },
       {
         id: newId('NEWS'),
         title: '系統維護公告',
         content: '本系統將於每週日凌晨 02:00-04:00 進行例行維護，期間部分功能可能暫停。',
-        category: 'maintenance',
+        category: 'maintenance' as const,
         createdAt: new Date().toISOString(),
       },
-    ];
-    save(KEYS.news, news);
-  }
-
-  /** 開發用：重置所有資料 */
-  reset(): void {
-    Object.values(KEYS).forEach((k) => localStorage.removeItem(k));
-    location.reload();
+    ]);
   }
 }

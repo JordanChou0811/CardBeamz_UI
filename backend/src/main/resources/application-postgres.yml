@@ -1,0 +1,24 @@
+# 啟用方式：--spring.profiles.active=postgres
+# 環境變數範例：
+#   DB_URL=jdbc:postgresql://host:5432/cardbeamz
+#   DB_USER=postgres
+#   DB_PASSWORD=secret
+
+spring:
+  config:
+    activate:
+      on-profile: postgres
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  h2:
+    console:
+      enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect

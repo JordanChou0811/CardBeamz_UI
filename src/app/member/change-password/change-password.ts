@@ -62,7 +62,7 @@ export class ChangePassword {
   error = signal('');
   done = signal(false);
 
-  submit() {
+  async submit() {
     this.error.set('');
     this.done.set(false);
     const user = this.auth.currentUser();
@@ -71,16 +71,16 @@ export class ChangePassword {
       this.error.set('pwd.errRequired');
       return;
     }
-    if (this.oldPwd !== user.password) {
-      this.error.set('pwd.errOld');
-      return;
-    }
     if (this.newPwd !== this.confirmPwd) {
       this.error.set('pwd.errMismatch');
       return;
     }
-    this.data.updateMember(user.id, { password: this.newPwd });
-    this.oldPwd = this.newPwd = this.confirmPwd = '';
-    this.done.set(true);
+    try {
+      await this.data.changePassword(user.id, this.oldPwd, this.newPwd);
+      this.oldPwd = this.newPwd = this.confirmPwd = '';
+      this.done.set(true);
+    } catch {
+      this.error.set('pwd.errOld');
+    }
   }
 }

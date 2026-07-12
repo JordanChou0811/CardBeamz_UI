@@ -282,7 +282,7 @@ export class ItemsAdmin {
     this.exchangeValue.set(this.selectedGroup()?.exchangeValue ?? 0);
   }
 
-  assign() {
+  async assign() {
     this.error.set('');
     this.success.set(0);
     const group = this.selectedGroup();
@@ -290,7 +290,7 @@ export class ItemsAdmin {
       this.error.set('aitems.errRequired');
       return;
     }
-    const created = this.data.assignItems(
+    const created = await this.data.assignItems(
       this.memberId,
       {
         name: group.name,

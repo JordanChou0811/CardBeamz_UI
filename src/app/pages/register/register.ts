@@ -165,17 +165,21 @@ export class Register {
     return '09' + this.digits;
   }
 
-  sendCode() {
+  async sendCode() {
     if (this.digits.length !== 8) {
       this.error.set('register.errPhone');
       return;
     }
     this.error.set('');
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    this.sentCode.set(code);
+    try {
+      const code = await this.data.sendVerifyCode(this.account);
+      this.sentCode.set(code || '已發送');
+    } catch {
+      this.error.set('register.errSend');
+    }
   }
 
-  submit() {
+  async submit() {
     this.error.set('');
     if (!this.name.trim()) {
       this.error.set('register.errName');
@@ -189,7 +193,7 @@ export class Register {
       this.error.set('register.errCodeFirst');
       return;
     }
-    if (this.code.trim() !== this.sentCode()) {
+    if (!this.code.trim()) {
       this.error.set('register.errCode');
       return;
     }
@@ -197,18 +201,22 @@ export class Register {
       this.error.set('register.errPwd');
       return;
     }
-    if (this.data.findByAccount(this.account)) {
-      this.error.set('register.errDup');
-      return;
-    }
 
-    const member = this.data.createMember({
-      account: this.account,
-      name: this.name.trim(),
-      password: this.password,
-    });
-    this.memberNo.set(member.id);
-    this.success.set(true);
+    try {
+      const member = await this.data.createMember({
+        account: this.account,
+        name: this.name.trim(),
+        password: this.password,
+        verifyCode: this.code.trim(),
+      });
+      this.memberNo.set(member.id);
+      this.success.set(true);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '';
+      if (msg.includes('已存在')) this.error.set('register.errDup');
+      else if (msg.includes('驗證碼')) this.error.set('register.errCode');
+      else this.error.set('register.errFail');
+    }
   }
 
   goLogin() {

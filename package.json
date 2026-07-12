@@ -3,8 +3,11 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve --port 4300",
+    "start": "ng serve --port 4300 --configuration=mock",
+    "start:mock": "ng serve --port 4300 --configuration=mock",
+    "start:api": "ng serve --port 4300 --configuration=api",
     "build": "ng build",
+    "build:api": "ng build --configuration=api",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
   },

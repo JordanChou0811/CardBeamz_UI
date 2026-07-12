@@ -1,0 +1,30 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: cardbeamz-backend
+  datasource:
+    url: jdbc:h2:file:./data/cardbeamz;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;AUTO_SERVER=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+# 之後換成雲端 Postgres 時，用：
+# java -jar backend.jar --spring.profiles.active=postgres
+# 並設定環境變數 DB_URL / DB_USER / DB_PASSWORD
+
+cardbeamz:
+  cors:
+    allowed-origins: http://localhost:4200,http://127.0.0.1:4200,http://localhost:4300,http://127.0.0.1:4300

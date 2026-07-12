@@ -111,7 +111,7 @@ export class PagesAdmin {
   editingId = signal<string | null>(null);
   error = signal('');
 
-  save() {
+  async save() {
     this.error.set('');
     if (!this.title.trim() || !this.content.trim()) {
       this.error.set('apages.errRequired');
@@ -119,13 +119,13 @@ export class PagesAdmin {
     }
     const id = this.editingId();
     if (id) {
-      this.data.updateNews(id, {
+      await this.data.updateNews(id, {
         title: this.title.trim(),
         content: this.content.trim(),
         category: this.category,
       });
     } else {
-      this.data.addNews({
+      await this.data.addNews({
         title: this.title.trim(),
         content: this.content.trim(),
         category: this.category,

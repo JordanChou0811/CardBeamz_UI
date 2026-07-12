@@ -231,7 +231,7 @@ export class GroupsAdmin {
     this.picker.set(false);
   }
 
-  save() {
+  async save() {
     this.error.set('');
     if (!this.code.trim() || !this.name.trim()) {
       this.error.set('groups.errRequired');
@@ -245,9 +245,9 @@ export class GroupsAdmin {
     };
     const id = this.editingId();
     if (id) {
-      this.data.updateGroup(id, payload);
+      await this.data.updateGroup(id, payload);
     } else {
-      this.data.addGroup(payload);
+      await this.data.addGroup(payload);
     }
     this.resetForm();
   }

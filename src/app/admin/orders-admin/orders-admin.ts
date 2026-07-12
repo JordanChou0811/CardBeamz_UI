@@ -103,7 +103,7 @@ export class OrdersAdmin {
     if (s.method === 'mail') return `${s.name}・${s.phone}・${s.address}`;
     return `Line：${s.lineName}（${s.lineId}）`;
   }
-  ship(o: Order) {
-    this.data.shipOrder(o.id);
+  async ship(o: Order) {
+    await this.data.shipOrder(o.id);
   }
 }
