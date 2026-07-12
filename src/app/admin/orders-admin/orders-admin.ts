@@ -91,6 +91,10 @@ export class OrdersAdmin {
 
   list = computed(() => this.data.orders().filter((o) => o.status === this.tab()));
 
+  constructor() {
+    void Promise.all([this.data.refreshOrders(), this.data.refreshMembers()]);
+  }
+
   memberName(id: string) {
     return this.data.findMember(id)?.name ?? '—';
   }

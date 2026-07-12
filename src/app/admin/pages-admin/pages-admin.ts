@@ -111,6 +111,10 @@ export class PagesAdmin {
   editingId = signal<string | null>(null);
   error = signal('');
 
+  constructor() {
+    void this.data.refreshNews();
+  }
+
   async save() {
     this.error.set('');
     if (!this.title.trim() || !this.content.trim()) {

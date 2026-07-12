@@ -309,6 +309,10 @@ export class UploadAdmin {
   uploading = signal(false);
   copiedId = signal<string | null>(null);
 
+  constructor() {
+    void Promise.all([this.data.refreshMembers(), this.data.refreshItems()]);
+  }
+
   /** 由倉庫資料推出已存在的團名（取代號，例如 "CBZ01 團" → "CBZ01"） */
   groupOptions = computed(() => {
     const set = new Set<string>();

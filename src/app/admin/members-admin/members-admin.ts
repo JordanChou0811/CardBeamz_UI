@@ -76,6 +76,10 @@ export class MembersAdmin {
   editing = signal<Member | null>(null);
   amount = 0;
 
+  constructor() {
+    void this.data.refreshMembers();
+  }
+
   openEdit(m: Member) {
     this.amount = m.credit;
     this.editing.set(m);

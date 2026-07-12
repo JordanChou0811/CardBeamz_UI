@@ -238,6 +238,14 @@ export class ItemsAdmin {
   cardNo = '';
   quantity = 1;
 
+  constructor() {
+    void Promise.all([
+      this.data.refreshMembers(),
+      this.data.refreshGroups(),
+      this.data.refreshItems(undefined, 'in_warehouse'),
+    ]);
+  }
+
   /** 這張卡片要用的圖；'' 代表沿用團預設圖 */
   cardPhoto = signal('');
   exchangeValue = signal(0);

@@ -127,6 +127,10 @@ export class NotifyAdmin {
 
   memberCount = computed(() => this.data.members().filter((m) => m.role === 'member').length);
 
+  constructor() {
+    void this.data.refreshMembers();
+  }
+
   async send() {
     this.error.set('');
     if (!this.message.trim()) {

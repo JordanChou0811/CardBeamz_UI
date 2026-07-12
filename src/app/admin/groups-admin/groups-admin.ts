@@ -218,6 +218,10 @@ export class GroupsAdmin {
   error = signal('');
   picker = signal(false);
 
+  constructor() {
+    void this.data.refreshGroups();
+  }
+
   isColor(value: string): boolean {
     return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value?.trim() ?? '');
   }
