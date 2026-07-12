@@ -1,6 +1,7 @@
 package com.cardbeamz.group;
 
 import com.cardbeamz.common.ApiException;
+import com.cardbeamz.common.ReturnCodes;
 import com.cardbeamz.common.IdGenerator;
 import java.time.Instant;
 import java.util.HashMap;
@@ -27,7 +28,7 @@ public class GroupService {
   @Transactional
   public Map<String, Object> create(String code, String name, String photo, int exchangeValue) {
     if (groupRepository.findByCode(code).isPresent()) {
-      throw new ApiException("group", "create", "新增團", "4001", "團代號已存在");
+      throw new ApiException("group", "create", "新增團", ReturnCodes.GROUP_CODE_EXISTS, "團代號已存在");
     }
     GroupEntity group =
         GroupEntity.builder()
@@ -47,7 +48,7 @@ public class GroupService {
     GroupEntity group =
         groupRepository
             .findById(id)
-            .orElseThrow(() -> new ApiException("group", "update", "修改團", "4002", "團不存在"));
+            .orElseThrow(() -> new ApiException("group", "update", "修改團", ReturnCodes.GROUP_NOT_FOUND, "團不存在"));
     if (code != null) group.setCode(code);
     if (name != null) group.setName(name);
     if (photo != null) group.setPhoto(photo);
@@ -59,7 +60,7 @@ public class GroupService {
   @Transactional
   public Map<String, Object> delete(String id) {
     if (!groupRepository.existsById(id)) {
-      throw new ApiException("group", "delete", "刪除團", "4002", "團不存在");
+      throw new ApiException("group", "delete", "刪除團", ReturnCodes.GROUP_NOT_FOUND, "團不存在");
     }
     groupRepository.deleteById(id);
     return Map.of("id", id);

@@ -64,6 +64,27 @@ public class MemberController {
         memberService.changePassword(req.getMemberId(), req.getOldPassword(), req.getNewPassword()));
   }
 
+  @PostMapping("/create")
+  public ApiResponse<Map<String, Object>> create(@RequestBody AdminCreateRequest req) {
+    return ApiResponse.ok(
+        "member",
+        "create",
+        "新增會員",
+        "已建立",
+        memberService.adminCreate(req.getAccount(), req.getName(), req.getPassword(), req.getCredit()));
+  }
+
+  @PostMapping("/update")
+  public ApiResponse<Map<String, Object>> update(@RequestBody AdminUpdateRequest req) {
+    return ApiResponse.ok(
+        "member",
+        "update",
+        "修改會員",
+        "已更新",
+        memberService.adminUpdate(
+            req.getId(), req.getName(), req.getAccount(), req.getPassword(), req.getCredit()));
+  }
+
   @Data
   public static class LoginRequest {
     @NotBlank private String account;
@@ -88,5 +109,22 @@ public class MemberController {
     @NotBlank private String memberId;
     @NotBlank private String oldPassword;
     @NotBlank private String newPassword;
+  }
+
+  @Data
+  public static class AdminCreateRequest {
+    @NotBlank private String account;
+    @NotBlank private String name;
+    @NotBlank private String password;
+    private Integer credit;
+  }
+
+  @Data
+  public static class AdminUpdateRequest {
+    @NotBlank private String id;
+    private String name;
+    private String account;
+    private String password;
+    private Integer credit;
   }
 }

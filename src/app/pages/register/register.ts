@@ -4,6 +4,7 @@ import { Router, RouterLink } from '@angular/router';
 import { DataService } from '../../services/data.service';
 import { TranslatePipe } from '../../services/translate.pipe';
 import { Controls } from '../../shared/controls/controls';
+import { apiErrorI18nKey } from '../../services/telegram.service';
 
 @Component({
   selector: 'app-register',
@@ -212,10 +213,8 @@ export class Register {
       this.memberNo.set(member.id);
       this.success.set(true);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : '';
-      if (msg.includes('已存在')) this.error.set('register.errDup');
-      else if (msg.includes('驗證碼')) this.error.set('register.errCode');
-      else this.error.set('register.errFail');
+      // 依 returnCode 顯示錯誤（1002 驗證碼、1003 帳號已存在…）
+      this.error.set(apiErrorI18nKey(e, 'register.errFail'));
     }
   }
 

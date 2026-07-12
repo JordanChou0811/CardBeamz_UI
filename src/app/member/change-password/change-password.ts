@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
 import { DataService } from '../../services/data.service';
 import { TranslatePipe } from '../../services/translate.pipe';
+import { apiErrorI18nKey } from '../../services/telegram.service';
 
 @Component({
   selector: 'app-change-password',
@@ -79,8 +80,9 @@ export class ChangePassword {
       await this.data.changePassword(user.id, this.oldPwd, this.newPwd);
       this.oldPwd = this.newPwd = this.confirmPwd = '';
       this.done.set(true);
-    } catch {
-      this.error.set('pwd.errOld');
+    } catch (e) {
+      // 1005 舊密碼錯誤；其餘走 api.err.*
+      this.error.set(apiErrorI18nKey(e, 'pwd.errOld'));
     }
   }
 }

@@ -1,6 +1,7 @@
 package com.cardbeamz.order;
 
 import com.cardbeamz.common.ApiException;
+import com.cardbeamz.common.ReturnCodes;
 import com.cardbeamz.warehouse.WarehouseItem;
 import com.cardbeamz.warehouse.WarehouseItemRepository;
 import java.time.Instant;
@@ -36,9 +37,9 @@ public class OrderService {
     OrderEntity order =
         orderRepository
             .findById(orderId)
-            .orElseThrow(() -> new ApiException("order", "ship", "出貨", "3001", "訂單不存在"));
+            .orElseThrow(() -> new ApiException("order", "ship", "出貨", ReturnCodes.ORDER_NOT_FOUND, "訂單不存在"));
     if (!"placed".equals(order.getStatus())) {
-      throw new ApiException("order", "ship", "出貨", "3002", "訂單狀態不可出貨");
+      throw new ApiException("order", "ship", "出貨", ReturnCodes.ORDER_CANNOT_SHIP, "訂單狀態不可出貨");
     }
     Instant now = Instant.now();
     order.setStatus("shipped");

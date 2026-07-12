@@ -1,22 +1,29 @@
 import { Injectable } from '@angular/core';
 import { environment } from '../../environments/environment';
+import { i18nKeyForReturnCode, ReturnCodes } from './api-codes';
 
 /**
  * API 客戶端。
  * - mock：讀取 /mock-data/{apid}/{opid}.json（模擬電文）
  * - api：呼叫 http://localhost:8080/api/{apid}/{opid}
+ *
+ * 錯誤處理：後端回傳 returnCode（見 api-codes.ts / 後端 ReturnCodes.java），
+ * 前端用 i18nKeyForReturnCode() 對應顯示文案，不要解析 returnMsg。
  */
 export interface ApiResponse<TData = unknown> {
   apid: string;
   opid: string;
   name: string;
+  /** 見 ReturnCodes；0000=成功 */
   returnCode: string;
+  /** 後端除錯訊息（可能為中文）；UI 勿直接顯示 */
   returnMsg: string;
   data: TData;
 }
 
 export class ApiError extends Error {
   constructor(
+    /** 見 ReturnCodes */
     public readonly returnCode: string,
     message: string,
     public readonly response?: ApiResponse
@@ -24,7 +31,19 @@ export class ApiError extends Error {
     super(message);
     this.name = 'ApiError';
   }
+
+  /** 對應的 i18n key */
+  get i18nKey(): string {
+    return i18nKeyForReturnCode(this.returnCode);
+  }
 }
+
+/** 從未知錯誤取出 i18n key */
+export function apiErrorI18nKey(e: unknown, fallback = 'api.err.unknown'): string {
+  if (e instanceof ApiError) return e.i18nKey;
+  return fallback;
+}
+
 
 @Injectable({ providedIn: 'root' })
 export class TelegramService {
@@ -81,7 +100,7 @@ export class TelegramService {
       res = await fetch(url, init);
     } catch {
       throw new ApiError(
-        '9998',
+        ReturnCodes.SYSTEM_OFFLINE, // 9998 無法連線
         this.useApi
           ? '無法連線後端，請確認已啟動 http://localhost:8080'
           : `無法讀取模擬電文：${url}`
@@ -91,9 +110,9 @@ export class TelegramService {
     try {
       json = (await res.json()) as ApiResponse<TData>;
     } catch {
-      throw new ApiError('9997', `回應格式錯誤（HTTP ${res.status}）`);
+      throw new ApiError(ReturnCodes.SYSTEM_BAD_RESPONSE, `回應格式錯誤（HTTP ${res.status}）`); // 9997
     }
-    if (!res.ok || json.returnCode !== '0000') {
+    if (!res.ok || json.returnCode !== ReturnCodes.OK) {
       throw new ApiError(json.returnCode || String(res.status), json.returnMsg || '請求失敗', json);
     }
     return json;

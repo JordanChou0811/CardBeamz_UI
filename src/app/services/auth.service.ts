@@ -1,7 +1,8 @@
 import { computed, Injectable, signal } from '@angular/core';
 import { Member } from '../models/models';
 import { environment } from '../../environments/environment';
-import { ApiError, TelegramService } from './telegram.service';
+import { ReturnCodes } from './api-codes';
+import { ApiError, apiErrorI18nKey, TelegramService } from './telegram.service';
 
 const SESSION_KEY = 'cbz_session';
 const TOKEN_KEY = 'cbz_token';
@@ -49,9 +50,12 @@ export class AuthService {
       this.persistSession(res.data.token, { ...res.data.member, password: undefined });
       return { ok: true };
     } catch (e) {
+      // 依 returnCode 對應 i18n（見 api-codes.ts）
       if (e instanceof ApiError) {
-        if (e.returnCode === '1001') return { ok: false, message: 'login.errWrongPwd' };
-        if (e.returnCode === '9998') return { ok: false, message: 'login.errOffline' };
+        if (e.returnCode === ReturnCodes.MEMBER_LOGIN_FAILED) {
+          return { ok: false, message: 'api.err.1001' }; // 1001 帳密錯誤
+        }
+        return { ok: false, message: apiErrorI18nKey(e, 'login.errFail') };
       }
       return { ok: false, message: 'login.errFail' };
     }

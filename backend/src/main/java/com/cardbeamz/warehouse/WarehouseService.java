@@ -2,6 +2,7 @@ package com.cardbeamz.warehouse;
 
 import com.cardbeamz.common.ApiException;
 import com.cardbeamz.common.IdGenerator;
+import com.cardbeamz.common.ReturnCodes;
 import com.cardbeamz.member.MemberService;
 import com.cardbeamz.order.OrderEntity;
 import com.cardbeamz.order.OrderRepository;
@@ -13,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/** 倉庫服務。錯誤碼 2xxx 見 {@link ReturnCodes}。 */
 @Service
 @RequiredArgsConstructor
 public class WarehouseService {
@@ -68,16 +70,19 @@ public class WarehouseService {
   @Transactional
   public Map<String, Object> checkout(String memberId, List<String> itemIds, Map<String, String> shipping) {
     if (itemIds == null || itemIds.isEmpty()) {
-      throw new ApiException("warehouse", "checkout", "結帳", "2001", "未選擇卡片");
+      // 2001 未選擇卡片
+      throw new ApiException("warehouse", "checkout", "結帳", ReturnCodes.WAREHOUSE_NO_ITEMS, "未選擇卡片");
     }
     memberService.require(memberId);
     List<WarehouseItem> items = itemRepository.findByIdIn(itemIds);
     if (items.size() != itemIds.size()) {
-      throw new ApiException("warehouse", "checkout", "結帳", "2002", "部分卡片不存在");
+      // 2002 部分卡片不存在
+      throw new ApiException("warehouse", "checkout", "結帳", ReturnCodes.WAREHOUSE_ITEM_MISSING, "部分卡片不存在");
     }
     for (WarehouseItem item : items) {
       if (!memberId.equals(item.getMemberId()) || !"in_warehouse".equals(item.getStatus())) {
-        throw new ApiException("warehouse", "checkout", "結帳", "2003", "卡片狀態不可結帳");
+        // 2003 卡片狀態不可結帳
+        throw new ApiException("warehouse", "checkout", "結帳", ReturnCodes.WAREHOUSE_ITEM_NOT_READY, "卡片狀態不可結帳");
       }
     }
 
@@ -155,7 +160,8 @@ public class WarehouseService {
   @Transactional
   public void remove(String itemId) {
     if (!itemRepository.existsById(itemId)) {
-      throw new ApiException("warehouse", "remove", "刪除卡片", "2004", "卡片不存在");
+      // 2004 卡片不存在
+      throw new ApiException("warehouse", "remove", "刪除卡片", ReturnCodes.WAREHOUSE_ITEM_NOT_FOUND, "卡片不存在");
     }
     itemRepository.deleteById(itemId);
   }
@@ -164,9 +170,13 @@ public class WarehouseService {
     WarehouseItem item =
         itemRepository
             .findById(itemId)
-            .orElseThrow(() -> new ApiException("warehouse", "item", "倉庫", "2004", "卡片不存在"));
+            .orElseThrow(
+                () ->
+                    new ApiException(
+                        "warehouse", "item", "倉庫", ReturnCodes.WAREHOUSE_ITEM_NOT_FOUND, "卡片不存在")); // 2004
     if (!"in_warehouse".equals(item.getStatus())) {
-      throw new ApiException("warehouse", "item", "倉庫", "2005", "卡片不在倉庫中");
+      // 2005 卡片不在倉庫中
+      throw new ApiException("warehouse", "item", "倉庫", ReturnCodes.WAREHOUSE_ITEM_NOT_IN_STOCK, "卡片不在倉庫中");
     }
     return item;
   }

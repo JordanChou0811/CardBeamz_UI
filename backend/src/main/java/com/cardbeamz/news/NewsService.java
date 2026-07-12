@@ -1,6 +1,7 @@
 package com.cardbeamz.news;
 
 import com.cardbeamz.common.ApiException;
+import com.cardbeamz.common.ReturnCodes;
 import com.cardbeamz.common.IdGenerator;
 import java.time.Instant;
 import java.util.HashMap;
@@ -40,7 +41,7 @@ public class NewsService {
       item =
           newsRepository
               .findById(id)
-              .orElseThrow(() -> new ApiException("news", "save", "儲存消息", "5001", "消息不存在"));
+              .orElseThrow(() -> new ApiException("news", "save", "儲存消息", ReturnCodes.NEWS_NOT_FOUND, "消息不存在"));
       item.setTitle(title);
       item.setContent(content);
       item.setCategory(category);
@@ -52,7 +53,7 @@ public class NewsService {
   @Transactional
   public Map<String, Object> delete(String id) {
     if (!newsRepository.existsById(id)) {
-      throw new ApiException("news", "delete", "刪除消息", "5001", "消息不存在");
+      throw new ApiException("news", "delete", "刪除消息", ReturnCodes.NEWS_NOT_FOUND, "消息不存在");
     }
     newsRepository.deleteById(id);
     return Map.of("id", id);

@@ -1,6 +1,7 @@
 package com.cardbeamz.member;
 
 import com.cardbeamz.common.ApiException;
+import com.cardbeamz.common.ReturnCodes;
 import com.cardbeamz.common.IdGenerator;
 import java.time.Instant;
 import java.util.HashMap;
@@ -13,6 +14,20 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 會員服務。
+ *
+ * <p>錯誤碼（returnCode）定義見 {@link com.cardbeamz.common.ReturnCodes}：
+ * <ul>
+ *   <li>1001 登入失敗</li>
+ *   <li>1002 驗證碼錯誤</li>
+ *   <li>1003 帳號已存在</li>
+ *   <li>1004 會員不存在</li>
+ *   <li>1005 舊密碼錯誤</li>
+ *   <li>1006 帳號格式錯誤</li>
+ *   <li>1007 不可修改管理員</li>
+ * </ul>
+ */
 @Service
 @RequiredArgsConstructor
 public class MemberService {
@@ -50,9 +65,9 @@ public class MemberService {
     Member member =
         memberRepository
             .findByAccount(account)
-            .orElseThrow(() -> new ApiException("member", "login", "會員登入", "1001", "帳號或密碼錯誤"));
+            .orElseThrow(() -> new ApiException("member", "login", "會員登入", ReturnCodes.MEMBER_LOGIN_FAILED, "帳號或密碼錯誤"));
     if (!passwordEncoder.matches(password, member.getPassword())) {
-      throw new ApiException("member", "login", "會員登入", "1001", "帳號或密碼錯誤");
+      throw new ApiException("member", "login", "會員登入", ReturnCodes.MEMBER_LOGIN_FAILED, "帳號或密碼錯誤");
     }
     Map<String, Object> data = new HashMap<>();
     data.put("token", IdGenerator.uuidToken());
@@ -64,10 +79,10 @@ public class MemberService {
   public Map<String, Object> register(String account, String name, String password, String verifyCode) {
     String expected = verifyCodes.get(account);
     if (expected == null || !expected.equals(verifyCode)) {
-      throw new ApiException("member", "register", "申請會員", "1002", "驗證碼錯誤或已過期");
+      throw new ApiException("member", "register", "申請會員", ReturnCodes.MEMBER_VERIFY_INVALID, "驗證碼錯誤或已過期");
     }
     if (memberRepository.existsByAccount(account)) {
-      throw new ApiException("member", "register", "申請會員", "1003", "帳號已存在");
+      throw new ApiException("member", "register", "申請會員", ReturnCodes.MEMBER_ACCOUNT_EXISTS, "帳號已存在");
     }
     Member member =
         Member.builder()
@@ -102,9 +117,9 @@ public class MemberService {
     Member member =
         memberRepository
             .findById(memberId)
-            .orElseThrow(() -> new ApiException("member", "change-password", "更改密碼", "1004", "會員不存在"));
+            .orElseThrow(() -> new ApiException("member", "change-password", "更改密碼", ReturnCodes.MEMBER_NOT_FOUND, "會員不存在"));
     if (!passwordEncoder.matches(oldPassword, member.getPassword())) {
-      throw new ApiException("member", "change-password", "更改密碼", "1005", "舊密碼錯誤");
+      throw new ApiException("member", "change-password", "更改密碼", ReturnCodes.MEMBER_OLD_PASSWORD_WRONG, "舊密碼錯誤");
     }
     member.setPassword(passwordEncoder.encode(newPassword));
     memberRepository.save(member);
@@ -114,7 +129,7 @@ public class MemberService {
   public Member require(String memberId) {
     return memberRepository
         .findById(memberId)
-        .orElseThrow(() -> new ApiException("member", "get", "會員查詢", "1004", "會員不存在"));
+        .orElseThrow(() -> new ApiException("member", "get", "會員查詢", ReturnCodes.MEMBER_NOT_FOUND, "會員不存在"));
   }
 
   public Map<String, Object> toPublic(Member m) {
@@ -140,5 +155,58 @@ public class MemberService {
     Member m = require(memberId);
     m.setCredit(credit);
     memberRepository.save(m);
+  }
+
+  /** 後台新增會員（略過驗證碼） */
+  @Transactional
+  public Map<String, Object> adminCreate(String account, String name, String password, Integer credit) {
+    if (memberRepository.existsByAccount(account)) {
+      throw new ApiException("member", "create", "新增會員", ReturnCodes.MEMBER_ACCOUNT_EXISTS, "帳號已存在");
+    }
+    if (account == null || !account.matches("09\\d{8}")) {
+      throw new ApiException("member", "create", "新增會員", ReturnCodes.MEMBER_ACCOUNT_FORMAT, "帳號須為 09 開頭共 10 碼");
+    }
+    Member member =
+        Member.builder()
+            .id(nextMemberId())
+            .account(account)
+            .name(name)
+            .password(passwordEncoder.encode(password))
+            .credit(credit == null ? 0 : Math.max(0, credit))
+            .role("member")
+            .createdAt(Instant.now())
+            .build();
+    memberRepository.save(member);
+    return Map.of("member", toPublic(member));
+  }
+
+  /** 後台修改會員資料 */
+  @Transactional
+  public Map<String, Object> adminUpdate(
+      String id, String name, String account, String password, Integer credit) {
+    Member member = require(id);
+    if ("admin".equals(member.getRole())) {
+      throw new ApiException("member", "update", "修改會員", ReturnCodes.MEMBER_ADMIN_FORBIDDEN, "不可由此修改管理員");
+    }
+    if (account != null && !account.isBlank() && !account.equals(member.getAccount())) {
+      if (!account.matches("09\\d{8}")) {
+        throw new ApiException("member", "update", "修改會員", ReturnCodes.MEMBER_ACCOUNT_FORMAT, "帳號須為 09 開頭共 10 碼");
+      }
+      if (memberRepository.existsByAccount(account)) {
+        throw new ApiException("member", "update", "修改會員", ReturnCodes.MEMBER_ACCOUNT_EXISTS, "帳號已存在");
+      }
+      member.setAccount(account);
+    }
+    if (name != null && !name.isBlank()) {
+      member.setName(name);
+    }
+    if (password != null && !password.isBlank()) {
+      member.setPassword(passwordEncoder.encode(password));
+    }
+    if (credit != null) {
+      member.setCredit(Math.max(0, credit));
+    }
+    memberRepository.save(member);
+    return Map.of("member", toPublic(member));
   }
 }

@@ -24,7 +24,7 @@ public class ApiResponse<T> {
         .apid(apid)
         .opid(opid)
         .name(name)
-        .returnCode("0000")
+        .returnCode(ReturnCodes.OK) // 0000 成功
         .returnMsg("成功")
         .data(data)
         .build();
@@ -35,12 +35,16 @@ public class ApiResponse<T> {
         .apid(apid)
         .opid(opid)
         .name(name)
-        .returnCode("0000")
+        .returnCode(ReturnCodes.OK) // 0000 成功
         .returnMsg(msg)
         .data(data)
         .build();
   }
 
+  /**
+   * 失敗回應。{@code code} 請使用 {@link ReturnCodes}。
+   * 前端依 code 對 i18n，returnMsg 僅供除錯／後台 log。
+   */
   public static <T> ApiResponse<T> fail(String apid, String opid, String name, String code, String msg) {
     return ApiResponse.<T>builder()
         .apid(apid)

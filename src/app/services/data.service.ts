@@ -221,6 +221,61 @@ export class DataService {
     if (this.auth().currentUser()?.id === id) await this.auth().refreshMe(id);
   }
 
+  async adminCreateMember(data: {
+    account: string;
+    name: string;
+    password: string;
+    credit?: number;
+  }): Promise<Member> {
+    if (!environment.useApi) {
+      if (this.findByAccount(data.account)) throw new Error('帳號已存在');
+      const member: Member = {
+        id: this.nextMemberNo(),
+        account: data.account,
+        name: data.name,
+        password: data.password,
+        credit: Math.max(0, data.credit ?? 0),
+        role: 'member',
+        createdAt: new Date().toISOString(),
+      };
+      const next = [...this.members(), member];
+      this.members.set(next);
+      save(KEYS.members, next);
+      return member;
+    }
+    const res = await this.api.post<{ member: Member }>('member', 'create', data);
+    await this.refreshMembers();
+    return res.data.member;
+  }
+
+  async adminUpdateMember(
+    id: string,
+    patch: { name?: string; account?: string; password?: string; credit?: number }
+  ): Promise<void> {
+    if (!environment.useApi) {
+      const cur = this.findMember(id);
+      if (!cur) throw new Error('會員不存在');
+      if (patch.account && patch.account !== cur.account && this.findByAccount(patch.account)) {
+        throw new Error('帳號已存在');
+      }
+      this.patchMemberLocal(id, {
+        ...patch,
+        password: patch.password?.trim() ? patch.password : cur.password,
+      });
+      if (this.auth().currentUser()?.id === id) {
+        this.auth().patchCurrentUser({
+          name: patch.name ?? cur.name,
+          account: patch.account ?? cur.account,
+          credit: patch.credit ?? cur.credit,
+        });
+      }
+      return;
+    }
+    await this.api.post('member', 'update', { id, ...patch });
+    await this.refreshMembers();
+    if (this.auth().currentUser()?.id === id) await this.auth().refreshMe(id);
+  }
+
   // ========== 倉庫 ==========
   async assignItems(
     memberId: string,

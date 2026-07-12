@@ -50,10 +50,13 @@ DB_PASSWORD=secret
 | Method | Path | 說明 |
 |--------|------|------|
 | GET | `/api/member/list` | 會員列表（後台） |
+| GET | `/api/member/me` | 當前會員 |
 | POST | `/api/member/login` | 登入 |
 | POST | `/api/member/register` | 註冊 |
 | POST | `/api/member/send-verify-code` | 驗證碼（開發會回 `debugCode`） |
 | POST | `/api/member/change-password` | 改密碼 |
+| POST | `/api/member/create` | 後台新增會員 |
+| POST | `/api/member/update` | 後台修改會員 |
 | GET | `/api/warehouse/list?memberId=` | 倉庫一覽 |
 | POST | `/api/warehouse/recycle` | 回收 |
 | POST | `/api/warehouse/exchange` | 換團拆金 |

@@ -23,12 +23,12 @@ public class GlobalExceptionHandler {
             .map(err -> err.getField() + ": " + err.getDefaultMessage())
             .orElse("參數錯誤");
     return ResponseEntity.badRequest()
-        .body(ApiResponse.fail("system", "validation", "參數驗證", "4001", msg));
+        .body(ApiResponse.fail("system", "validation", "參數驗證", ReturnCodes.SYSTEM_VALIDATION, msg));
   }
 
   @ExceptionHandler(Exception.class)
   public ResponseEntity<ApiResponse<Void>> handleOther(Exception ex) {
     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-        .body(ApiResponse.fail("system", "error", "系統錯誤", "9999", ex.getMessage()));
+        .body(ApiResponse.fail("system", "error", "系統錯誤", ReturnCodes.SYSTEM_ERROR, ex.getMessage()));
   }
 }
