@@ -88,6 +88,11 @@ const DICT: Dict = {
   'api.err.4101': { zh: '團卡片不存在', en: 'Group card not found' },
   'api.err.5001': { zh: '消息不存在', en: 'News item not found' },
   'api.err.9001': { zh: '參數錯誤', en: 'Invalid parameters' },
+  'api.err.9101': {
+    zh: '尚未設定 Cloudinary API Key／Secret。請編輯 backend/src/main/resources/application-local.yml 後重啟後端。',
+    en: 'Cloudinary API Key/Secret not set. Edit application-local.yml and restart the backend.',
+  },
+  'api.err.9102': { zh: '無法列出 Cloudinary 圖片', en: 'Failed to list Cloudinary images' },
   'api.err.9997': { zh: '後端回應格式錯誤', en: 'Invalid API response' },
   'api.err.9998': { zh: '無法連線後端，請確認已啟動', en: 'Cannot reach backend' },
   'api.err.9999': { zh: '系統錯誤', en: 'System error' },
@@ -302,6 +307,14 @@ const DICT: Dict = {
   'groups.cardsEmpty': { zh: '此團尚無卡片，請先新增', en: 'No cards in this group yet' },
   'groups.backToGroups': { zh: '返回團列表', en: 'Back to groups' },
   'groups.cardErrRequired': { zh: '請至少填寫卡名或卡號', en: 'Enter a card name or number' },
+  'groups.pickCardPhoto': { zh: '選擇卡片圖', en: 'Choose card image' },
+  'groups.pickCardPhotoTitle': { zh: '選擇該團資料夾圖片', en: 'Pick from group folder' },
+  'groups.folderEmpty': {
+    zh: '此團資料夾尚無圖片，請先到「圖片上傳」上傳。',
+    en: 'No images in this group folder yet. Upload via "Upload Images" first.',
+  },
+  'groups.loadingImages': { zh: '載入圖片中…', en: 'Loading images…' },
+  'groups.loadMoreImages': { zh: '載入更多', en: 'Load more' },
 
   // ---- 分派卡片 ----
   'admin.nav.items': { zh: '分派卡片', en: 'Assign Cards' },
@@ -366,6 +379,11 @@ const DICT: Dict = {
   'upload.cat.members': { zh: '會員 · 卡片', en: 'Members · Cards' },
   'upload.cat.system': { zh: '系統 · 圖示 / Logo', en: 'System · Logos' },
   'upload.group': { zh: '團', en: 'Group' },
+  'upload.selectGroup': { zh: '請選擇團', en: 'Select a group' },
+  'upload.noGroups': {
+    zh: '尚無團，請先到「團拆管理」新增。',
+    en: 'No groups yet. Please add one in "Group Management" first.',
+  },
   'upload.groupPlaceholder': { zh: '輸入或選擇團，例如 CBZ01', en: 'Enter or select a group, e.g. CBZ01' },
   'upload.member': { zh: '會員', en: 'Member' },
   'upload.selectMember': { zh: '請選擇會員', en: 'Select a member' },

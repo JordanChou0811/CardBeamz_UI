@@ -42,16 +42,16 @@ interface Pending {
         @if (category === 'groups') {
           <div class="field">
             <label>{{ 'upload.group' | t }}</label>
-            <input
-              [(ngModel)]="groupName"
-              list="groupList"
-              [placeholder]="'upload.groupPlaceholder' | t"
-            />
-            <datalist id="groupList">
-              @for (g of groupOptions(); track g) {
-                <option [value]="g"></option>
-              }
-            </datalist>
+            @if (data.groups().length === 0) {
+              <p class="hint-text">{{ 'upload.noGroups' | t }}</p>
+            } @else {
+              <select [(ngModel)]="groupCode">
+                <option value="">{{ 'upload.selectGroup' | t }}</option>
+                @for (g of data.groups(); track g.id) {
+                  <option [value]="g.code">{{ g.name }}（{{ g.code }}）</option>
+                }
+              </select>
+            }
           </div>
         }
 
@@ -297,11 +297,12 @@ interface Pending {
 })
 export class UploadAdmin {
   protected cloud = inject(CloudinaryService);
-  private data = inject(DataService);
+  protected data = inject(DataService);
   protected configured = isCloudinaryConfigured();
 
   category: UploadCategory = 'groups';
-  groupName = '';
+  /** 選中的團代號，作為 Cloudinary 資料夾名 */
+  groupCode = '';
   memberId = '';
 
   pending = signal<Pending[]>([]);
@@ -310,22 +311,13 @@ export class UploadAdmin {
   copiedId = signal<string | null>(null);
 
   constructor() {
-    void Promise.all([this.data.refreshMembers(), this.data.refreshItems()]);
+    void Promise.all([this.data.refreshGroups(), this.data.refreshMembers()]);
   }
-
-  /** 由倉庫資料推出已存在的團名（取代號，例如 "CBZ01 團" → "CBZ01"） */
-  groupOptions = computed(() => {
-    const set = new Set<string>();
-    for (const it of this.data.items()) {
-      set.add(this.slug(it.cbz));
-    }
-    return [...set].sort();
-  });
 
   memberOptions = computed(() => this.data.members().filter((m) => m.role === 'member'));
 
   onCategoryChange() {
-    this.groupName = '';
+    this.groupCode = '';
     this.memberId = '';
   }
 
@@ -340,7 +332,7 @@ export class UploadAdmin {
     const base = CLOUDINARY.baseFolder || 'cardbeamz';
     if (this.category === 'system') return `${base}/system`;
     if (this.category === 'groups') {
-      const sub = this.slug(this.groupName);
+      const sub = this.slug(this.groupCode);
       return sub ? `${base}/groups/${sub}` : '';
     }
     if (this.category === 'members') {

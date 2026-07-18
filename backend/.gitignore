@@ -25,3 +25,7 @@ Thumbs.db
 
 # Logs
 *.log
+
+# 本機密鑰（勿提交）
+src/main/resources/application-local.yml
+cloudinary.local.ps1

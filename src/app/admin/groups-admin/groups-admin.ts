@@ -1,9 +1,10 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
 import { CloudinaryService, UploadedImage } from '../../services/cloudinary.service';
 import { Group, GroupCard } from '../../models/models';
 import { TranslatePipe } from '../../services/translate.pipe';
+import { apiErrorI18nKey } from '../../services/telegram.service';
 
 @Component({
   selector: 'app-groups-admin',
@@ -45,33 +46,24 @@ import { TranslatePipe } from '../../services/translate.pipe';
 
             <div class="field">
               <label>{{ 'aitems.cardPhoto' | t }}</label>
-              <div class="card-pick">
-                <button
-                  type="button"
-                  class="pick-tile def"
-                  [class.active]="cardPhoto() === ''"
-                  [style.background]="isColor(mg.photo) ? mg.photo : null"
-                  (click)="cardPhoto.set('')"
+              <div class="photo-row">
+                <div
+                  class="thumb-lg"
+                  [style.background]="isColor(selectedCardPreview(mg)) ? selectedCardPreview(mg) : null"
                 >
-                  @if (!isColor(mg.photo) && mg.photo) {
-                    <img [src]="mg.photo" alt="" />
+                  @if (!isColor(selectedCardPreview(mg)) && selectedCardPreview(mg)) {
+                    <img [src]="selectedCardPreview(mg)" alt="preview" />
                   }
-                  <span class="tag">{{ 'aitems.useGroupPhoto' | t }}</span>
-                </button>
-                @for (img of groupImages(); track img.publicId) {
-                  <button
-                    type="button"
-                    class="pick-tile"
-                    [class.active]="cardPhoto() === img.url"
-                    (click)="cardPhoto.set(img.url)"
-                  >
-                    <img [src]="img.url" [alt]="img.name" />
+                </div>
+                <div class="photo-inputs">
+                  <p class="hint-text" style="margin: 0 0 8px">
+                    {{ cardPhoto() ? ('aitems.cardPhoto' | t) : ('aitems.useGroupPhoto' | t) }}
+                  </p>
+                  <button type="button" class="btn btn-outline btn-sm" (click)="openCardPhotoPicker()">
+                    🖼️ {{ 'groups.pickCardPhoto' | t }}
                   </button>
-                }
+                </div>
               </div>
-              @if (groupImages().length === 0) {
-                <p class="hint-text">{{ 'aitems.noCardImages' | t }}</p>
-              }
             </div>
 
             @if (cardError()) {
@@ -247,6 +239,65 @@ import { TranslatePipe } from '../../services/translate.pipe';
         </div>
       </div>
     }
+
+    @if (cardPhotoPicker(); as mgPick) {
+      <div class="modal-backdrop" (click)="closeCardPhotoPicker()">
+        <div class="modal picker card-photo-modal" (click)="$event.stopPropagation()">
+          <h3>{{ 'groups.pickCardPhotoTitle' | t }}</h3>
+          <p class="hint-text">📁 cardbeamz/groups/{{ mgPick.code }}</p>
+
+          @if (folderLoading()) {
+            <div class="empty"><span class="emoji">⏳</span>{{ 'groups.loadingImages' | t }}</div>
+          } @else if (folderError()) {
+            <p class="error-text">{{ folderError() | t }}</p>
+          } @else {
+            <div class="pick-grid">
+              <button
+                type="button"
+                class="pick def"
+                [class.active]="cardPhoto() === ''"
+                [style.background]="isColor(mgPick.photo) ? mgPick.photo : null"
+                (click)="chooseCardPhoto('')"
+              >
+                @if (!isColor(mgPick.photo) && mgPick.photo) {
+                  <img [src]="mgPick.photo" alt="" />
+                }
+                <span class="pick-label">{{ 'aitems.useGroupPhoto' | t }}</span>
+              </button>
+              @for (img of folderImages(); track img.publicId) {
+                <button
+                  type="button"
+                  class="pick"
+                  [class.active]="cardPhoto() === img.url"
+                  (click)="chooseCardPhoto(img.url)"
+                >
+                  <img [src]="img.url" [alt]="img.name" />
+                </button>
+              }
+            </div>
+            @if (folderImages().length === 0) {
+              <div class="empty"><span class="emoji">🗂️</span>{{ 'groups.folderEmpty' | t }}</div>
+            }
+            @if (folderNextCursor()) {
+              <div class="modal-actions mt-2">
+                <button
+                  type="button"
+                  class="btn btn-outline"
+                  [disabled]="folderLoading()"
+                  (click)="loadMoreFolderImages()"
+                >
+                  {{ 'groups.loadMoreImages' | t }}
+                </button>
+              </div>
+            }
+          }
+
+          <div class="modal-actions mt-2">
+            <button class="btn btn-outline" (click)="closeCardPhotoPicker()">{{ 'common.cancel' | t }}</button>
+          </div>
+        </div>
+      </div>
+    }
   `,
   styles: [
     `
@@ -305,56 +356,23 @@ import { TranslatePipe } from '../../services/translate.pipe';
         grid-template-columns: 1fr 1fr;
         gap: 0 12px;
       }
-      .card-pick {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
-        gap: 8px;
-      }
-      .pick-tile {
-        position: relative;
-        aspect-ratio: 1;
-        border: 2px solid var(--c-border);
-        border-radius: 10px;
-        overflow: hidden;
-        cursor: pointer;
-        padding: 0;
-        background: var(--c-surface-2);
-        transition: border-color 0.12s ease, transform 0.12s ease;
-      }
-      .pick-tile:hover {
-        transform: translateY(-2px);
-      }
-      .pick-tile.active {
-        border-color: var(--c-primary);
-      }
-      .pick-tile img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: block;
-      }
-      .pick-tile .tag {
-        position: absolute;
-        inset: auto 0 0 0;
-        font-size: 10px;
-        line-height: 1.3;
-        padding: 2px;
-        background: rgba(0, 0, 0, 0.45);
-        color: #fff;
-      }
       .picker {
         max-width: 560px;
+      }
+      .card-photo-modal {
+        max-width: 640px;
       }
       .pick-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
         gap: 10px;
-        max-height: 380px;
+        max-height: 420px;
         overflow: auto;
         margin-top: 8px;
       }
       .pick {
-        border: 1px solid var(--c-border);
+        position: relative;
+        border: 2px solid var(--c-border);
         border-radius: 10px;
         overflow: hidden;
         cursor: pointer;
@@ -366,11 +384,23 @@ import { TranslatePipe } from '../../services/translate.pipe';
         border-color: var(--c-primary);
         transform: translateY(-2px);
       }
+      .pick.active {
+        border-color: var(--c-primary);
+      }
       .pick img {
         width: 100%;
         height: 90px;
         object-fit: cover;
         display: block;
+      }
+      .pick .pick-label {
+        position: absolute;
+        inset: auto 0 0 0;
+        font-size: 11px;
+        line-height: 1.3;
+        padding: 3px;
+        background: rgba(0, 0, 0, 0.5);
+        color: #fff;
       }
       @media (max-width: 820px) {
         .grid {
@@ -401,21 +431,19 @@ export class GroupsAdmin {
   cardExchange = 0;
   cardPhoto = signal('');
 
-  groupImages = computed<UploadedImage[]>(() => {
-    const g = this.managingGroup();
-    if (!g) return [];
-    const keys = [g.code, g.name.trim().split(/\s+/)[0]]
-      .map((k) => k.replace(/[\\/?#%]/g, '').trim())
-      .filter(Boolean);
-    return this.cloud.gallery().filter((img) => {
-      const folder = img.folder || '';
-      if (!folder.includes('groups/')) return false;
-      return keys.some((k) => folder.endsWith(`/${k}`) || folder.endsWith(`groups/${k}`));
-    });
-  });
+  /** 開啟卡片圖跳窗時帶入的團 */
+  cardPhotoPicker = signal<Group | null>(null);
+  folderImages = signal<UploadedImage[]>([]);
+  folderNextCursor = signal<string | undefined>(undefined);
+  folderLoading = signal(false);
+  folderError = signal('');
 
   constructor() {
     void this.data.refreshGroups();
+  }
+
+  selectedCardPreview(g: Group): string {
+    return this.cardPhoto() || g.photo;
   }
 
   isColor(value: string): boolean {
@@ -478,7 +506,51 @@ export class GroupsAdmin {
   closeCards() {
     this.managingGroup.set(null);
     this.resetCardForm();
+    this.closeCardPhotoPicker();
     this.data.groupCards.set([]);
+  }
+
+  async openCardPhotoPicker() {
+    const g = this.managingGroup();
+    if (!g) return;
+    this.cardPhotoPicker.set(g);
+    this.folderImages.set([]);
+    this.folderNextCursor.set(undefined);
+    this.folderError.set('');
+    await this.fetchFolderImages(g.code);
+  }
+
+  closeCardPhotoPicker() {
+    this.cardPhotoPicker.set(null);
+    this.folderLoading.set(false);
+    this.folderError.set('');
+  }
+
+  chooseCardPhoto(url: string) {
+    this.cardPhoto.set(url);
+    this.closeCardPhotoPicker();
+  }
+
+  async loadMoreFolderImages() {
+    const g = this.cardPhotoPicker();
+    const cursor = this.folderNextCursor();
+    if (!g || !cursor) return;
+    await this.fetchFolderImages(g.code, cursor, true);
+  }
+
+  private async fetchFolderImages(groupCode: string, nextCursor?: string, append = false) {
+    this.folderLoading.set(true);
+    this.folderError.set('');
+    try {
+      const res = await this.cloud.listGroupFolder(groupCode, nextCursor);
+      this.folderImages.set(append ? [...this.folderImages(), ...res.images] : res.images);
+      this.folderNextCursor.set(res.nextCursor);
+    } catch (e) {
+      this.folderError.set(apiErrorI18nKey(e, 'api.err.9102'));
+      if (!append) this.folderImages.set([]);
+    } finally {
+      this.folderLoading.set(false);
+    }
   }
 
   editCard(c: GroupCard) {

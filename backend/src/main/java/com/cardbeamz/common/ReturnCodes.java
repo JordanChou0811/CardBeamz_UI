@@ -72,6 +72,10 @@ public final class ReturnCodes {
   // ----- system 9xxx -----
   /** 參數驗證失敗 */
   public static final String SYSTEM_VALIDATION = "9001";
+  /** 尚未設定 Cloudinary API Key／Secret */
+  public static final String CLOUDINARY_NOT_CONFIGURED = "9101";
+  /** Cloudinary 列出圖片失敗 */
+  public static final String CLOUDINARY_LIST_FAILED = "9102";
   /** 回應格式錯誤（前端專用） */
   public static final String SYSTEM_BAD_RESPONSE = "9997";
   /** 無法連線後端（前端專用） */

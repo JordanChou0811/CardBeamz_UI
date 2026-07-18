@@ -28,3 +28,9 @@ spring:
 cardbeamz:
   cors:
     allowed-origins: http://localhost:4200,http://127.0.0.1:4200,http://localhost:4300,http://127.0.0.1:4300
+  # Cloudinary Admin API（列圖庫用；密鑰勿提交 git，請用環境變數）
+  cloudinary:
+    cloud-name: ${CLOUDINARY_CLOUD_NAME:ddawye3go}
+    api-key: ${CLOUDINARY_API_KEY:}
+    api-secret: ${CLOUDINARY_API_SECRET:}
+    base-folder: ${CLOUDINARY_BASE_FOLDER:cardbeamz}

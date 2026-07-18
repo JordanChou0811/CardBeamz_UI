@@ -1,5 +1,7 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, Injector, signal } from '@angular/core';
 import { CLOUDINARY } from './cloudinary.config';
+import { environment } from '../../environments/environment';
+import { TelegramService } from './telegram.service';
 
 export interface UploadedImage {
   url: string;
@@ -14,12 +16,23 @@ export interface UploadOptions {
   onProgress?: (pct: number) => void;
 }
 
+export interface FolderListResult {
+  folder: string;
+  images: UploadedImage[];
+  nextCursor?: string;
+}
+
 const GALLERY_KEY = 'cbz_uploads';
 
 @Injectable({ providedIn: 'root' })
 export class CloudinaryService {
   readonly gallery = signal<UploadedImage[]>(this.load());
 
+  constructor(private injector: Injector) {}
+
+  private api(): TelegramService {
+    return this.injector.get(TelegramService);
+  }
   private load(): UploadedImage[] {
     try {
       const raw = localStorage.getItem(GALLERY_KEY);
@@ -82,5 +95,49 @@ export class CloudinaryService {
 
   removeFromGallery(publicId: string): void {
     this.persist(this.gallery().filter((g) => g.publicId !== publicId));
+  }
+
+  /**
+   * 列出該團 Cloudinary 資料夾圖片。
+   * - api 模式：後端 Admin API
+   * - mock 模式：本機 gallery 依 folder 過濾
+   */
+  async listGroupFolder(groupCode: string, nextCursor?: string): Promise<FolderListResult> {
+    const code = groupCode.trim().split(/\s+/)[0].replace(/[\\/?#%]/g, '');
+    const folder = `${CLOUDINARY.baseFolder || 'cardbeamz'}/groups/${code}`;
+
+    if (!environment.useApi) {
+      const images = this.gallery().filter((img) => {
+        const f = img.folder || '';
+        return f === folder || f.endsWith(`/groups/${code}`) || f.endsWith(`groups/${code}`);
+      });
+      return { folder, images };
+    }
+
+    const res = await this.api().get<{
+      folder: string;
+      images: Array<{
+        url: string;
+        publicId: string;
+        name: string;
+        folder: string;
+        createdAt?: string;
+      }>;
+      nextCursor?: string;
+    }>('cloudinary', 'list', { groupCode: code, nextCursor });
+
+    const images: UploadedImage[] = (res.data.images ?? []).map((img) => ({
+      url: img.url,
+      publicId: img.publicId,
+      name: img.name,
+      folder: img.folder || folder,
+      uploadedAt: img.createdAt || '',
+    }));
+
+    return {
+      folder: res.data.folder || folder,
+      images,
+      nextCursor: res.data.nextCursor,
+    };
   }
 }

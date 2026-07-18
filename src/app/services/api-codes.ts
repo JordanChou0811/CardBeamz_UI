@@ -65,6 +65,10 @@ export const ReturnCodes = {
   // ----- system 9xxx -----
   /** 參數驗證失敗 */
   SYSTEM_VALIDATION: '9001',
+  /** 尚未設定 Cloudinary API Key／Secret */
+  CLOUDINARY_NOT_CONFIGURED: '9101',
+  /** Cloudinary 列出圖片失敗 */
+  CLOUDINARY_LIST_FAILED: '9102',
   /** 回應格式錯誤 */
   SYSTEM_BAD_RESPONSE: '9997',
   /** 無法連線後端 */
@@ -102,6 +106,8 @@ export const RETURN_CODE_I18N: Record<string, string> = {
   [ReturnCodes.NEWS_NOT_FOUND]: 'api.err.5001',
   // system
   [ReturnCodes.SYSTEM_VALIDATION]: 'api.err.9001',
+  [ReturnCodes.CLOUDINARY_NOT_CONFIGURED]: 'api.err.9101',
+  [ReturnCodes.CLOUDINARY_LIST_FAILED]: 'api.err.9102',
   [ReturnCodes.SYSTEM_BAD_RESPONSE]: 'api.err.9997',
   [ReturnCodes.SYSTEM_OFFLINE]: 'api.err.9998',
   [ReturnCodes.SYSTEM_ERROR]: 'api.err.9999',

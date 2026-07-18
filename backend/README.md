@@ -76,6 +76,28 @@ DB_PASSWORD=secret
 | POST | `/api/news/save` | 新增／修改消息 |
 | POST | `/api/news/delete` | 刪除消息 |
 | POST | `/api/notify/send` | 發送通知（目前模擬） |
+| GET | `/api/group-card/list?groupId=` | 團卡片目錄 |
+| POST | `/api/group-card/create` | 新增團卡片 |
+| POST | `/api/group-card/update` | 修改團卡片 |
+| POST | `/api/group-card/delete` | 刪除團卡片 |
+| GET | `/api/cloudinary/list?groupCode=` | 列出該團 Cloudinary 資料夾圖片 |
+
+### Cloudinary（列圖庫）
+
+上傳仍由前端 unsigned preset 直連 Cloudinary；**列出資料夾**需後端 Admin API。
+
+本機建議（密鑰不進 git）：
+
+```powershell
+cd backend
+copy src\main\resources\application-local.yml.example src\main\resources\application-local.yml
+# 編輯 application-local.yml，填入 Dashboard → Settings → API Keys 的 Key / Secret
+.\run.ps1
+```
+
+`run.ps1` 若偵測到 `application-local.yml` 會自動加 `--spring.profiles.active=local`。
+
+也可用環境變數：`CLOUDINARY_API_KEY`、`CLOUDINARY_API_SECRET`（或可選的 `cloudinary.local.ps1`）。
 
 回應格式與 mock-data 相同：
 
