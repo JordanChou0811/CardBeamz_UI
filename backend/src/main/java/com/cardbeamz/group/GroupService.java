@@ -1,8 +1,8 @@
 package com.cardbeamz.group;
 
 import com.cardbeamz.common.ApiException;
-import com.cardbeamz.common.ReturnCodes;
 import com.cardbeamz.common.IdGenerator;
+import com.cardbeamz.common.ReturnCodes;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -27,7 +27,7 @@ public class GroupService {
   }
 
   @Transactional
-  public Map<String, Object> create(String code, String name, String photo, int exchangeValue) {
+  public Map<String, Object> create(String code, String name, String photo) {
     if (groupRepository.findByCode(code).isPresent()) {
       throw new ApiException("group", "create", "新增團", ReturnCodes.GROUP_CODE_EXISTS, "團代號已存在");
     }
@@ -37,7 +37,7 @@ public class GroupService {
             .code(code)
             .name(name)
             .photo(photo)
-            .exchangeValue(exchangeValue)
+            .exchangeValue(0)
             .createdAt(Instant.now())
             .build();
     groupRepository.save(group);
@@ -45,7 +45,7 @@ public class GroupService {
   }
 
   @Transactional
-  public Map<String, Object> update(String id, String code, String name, String photo, Integer exchangeValue) {
+  public Map<String, Object> update(String id, String code, String name, String photo) {
     GroupEntity group =
         groupRepository
             .findById(id)
@@ -53,7 +53,6 @@ public class GroupService {
     if (code != null) group.setCode(code);
     if (name != null) group.setName(name);
     if (photo != null) group.setPhoto(photo);
-    if (exchangeValue != null) group.setExchangeValue(exchangeValue);
     groupRepository.save(group);
     return Map.of("group", group);
   }

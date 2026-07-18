@@ -12,7 +12,6 @@
         "code": "CBZ01",
         "name": "CBZ01 團",
         "photo": "https://res.cloudinary.com/ddawye3go/image/upload/cardbeamz/groups/CBZ01/cover.jpg",
-        "exchangeValue": 120,
         "createdAt": "2026-05-01T00:00:00.000Z"
       },
       {
@@ -20,7 +19,6 @@
         "code": "CBZ02",
         "name": "CBZ02 團",
         "photo": "https://res.cloudinary.com/ddawye3go/image/upload/cardbeamz/groups/CBZ02/cover.jpg",
-        "exchangeValue": 90,
         "createdAt": "2026-05-02T00:00:00.000Z"
       }
     ]

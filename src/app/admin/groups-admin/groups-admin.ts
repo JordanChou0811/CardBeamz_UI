@@ -19,126 +19,82 @@ import { apiErrorI18nKey } from '../../services/telegram.service';
             ← {{ 'groups.backToGroups' | t }}
           </button>
           <div>
-            <div class="card-title">{{ 'groups.cardsTitle' | t }} · {{ mg.name }}（{{ mg.code }}）</div>
-            <p class="hint-text">{{ 'groups.cardsHint' | t }}</p>
+            <div class="card-title" style="margin-bottom: 4px">
+              {{ 'groups.cardsTitle' | t }} · {{ mg.name }}（{{ mg.code }}）
+            </div>
+            <p class="hint-text" style="margin: 0">{{ 'groups.cardsHint' | t }}</p>
           </div>
         </div>
 
-        <div class="grid">
-          <div class="card">
-            <div class="card-title">{{ (editingCardId() ? 'groups.editCard' : 'groups.addCard') | t }}</div>
-
-            <div class="two-col">
-              <div class="field">
-                <label>{{ 'aitems.cardName' | t }}</label>
-                <input [(ngModel)]="cardName" [placeholder]="'aitems.cardNamePlaceholder' | t" />
-              </div>
-              <div class="field">
-                <label>{{ 'aitems.cardNo' | t }}</label>
-                <input [(ngModel)]="cardNo" [placeholder]="'aitems.cardNoPlaceholder' | t" />
-              </div>
-            </div>
-
-            <div class="field">
-              <label>{{ 'groups.exchange' | t }}</label>
-              <input type="number" min="0" [(ngModel)]="cardExchange" />
-            </div>
-
-            <div class="field">
-              <label>{{ 'aitems.cardPhoto' | t }}</label>
-              <div class="photo-row">
-                <div
-                  class="thumb-lg"
-                  [style.background]="isColor(selectedCardPreview(mg)) ? selectedCardPreview(mg) : null"
-                >
-                  @if (!isColor(selectedCardPreview(mg)) && selectedCardPreview(mg)) {
-                    <img [src]="selectedCardPreview(mg)" alt="preview" />
-                  }
-                </div>
-                <div class="photo-inputs">
-                  <p class="hint-text" style="margin: 0 0 8px">
-                    {{ cardPhoto() ? ('aitems.cardPhoto' | t) : ('aitems.useGroupPhoto' | t) }}
-                  </p>
-                  <button type="button" class="btn btn-outline btn-sm" (click)="openCardPhotoPicker()">
-                    🖼️ {{ 'groups.pickCardPhoto' | t }}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            @if (cardError()) {
-              <p class="error-text">{{ cardError() | t }}</p>
-            }
-
-            <div class="row">
-              <button class="btn btn-primary" (click)="saveCard()">
-                {{ (editingCardId() ? 'common.save' : 'groups.addCard') | t }}
-              </button>
-              @if (editingCardId()) {
-                <button class="btn btn-outline" (click)="resetCardForm()">{{ 'common.cancel' | t }}</button>
-              }
-            </div>
+        <div class="card">
+          <div class="list-head">
+            <div class="card-title" style="margin: 0">{{ 'groups.cardsTitle' | t }}</div>
+            <button
+              type="button"
+              class="btn btn-primary btn-icon"
+              [attr.data-tip]="'groups.addCard' | t"
+              [attr.aria-label]="'groups.addCard' | t"
+              (click)="openAddCard()"
+            >
+              +
+            </button>
           </div>
-
-          <div class="card">
-            <div class="card-title">{{ 'groups.cardsTitle' | t }}</div>
-            @if (data.groupCards().length === 0) {
-              <div class="empty"><span class="emoji">🃏</span>{{ 'groups.cardsEmpty' | t }}</div>
-            } @else {
-              <table class="table">
-                <thead>
+          @if (data.groupCards().length === 0) {
+            <div class="empty"><span class="emoji">🃏</span>{{ 'groups.cardsEmpty' | t }}</div>
+          } @else {
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>{{ 'aitems.cardPhoto' | t }}</th>
+                  <th>{{ 'aitems.card' | t }}</th>
+                  <th>{{ 'groups.exchange' | t }}</th>
+                  <th style="width:90px"></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (c of data.groupCards(); track c.id) {
                   <tr>
-                    <th>{{ 'aitems.cardPhoto' | t }}</th>
-                    <th>{{ 'aitems.card' | t }}</th>
-                    <th>{{ 'groups.exchange' | t }}</th>
-                    <th style="width:90px"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (c of data.groupCards(); track c.id) {
-                    <tr>
-                      <td>
-                        <div class="thumb" [style.background]="isColor(c.photo) ? c.photo : null">
-                          @if (!isColor(c.photo) && c.photo) {
-                            <img [src]="c.photo" alt="" />
-                          }
-                        </div>
-                      </td>
-                      <td>
-                        @if (c.cardName || c.cardNo) {
-                          {{ c.cardName }}
-                          <span class="text-muted">{{ c.cardNo ? ' #' + c.cardNo : '' }}</span>
-                        } @else {
-                          <span class="text-muted">—</span>
+                    <td>
+                      <div class="thumb" [style.background]="isColor(c.photo) ? c.photo : null">
+                        @if (!isColor(c.photo) && c.photo) {
+                          <img [src]="c.photo" alt="" />
                         }
-                      </td>
-                      <td><b class="val">{{ c.exchangeValue }} {{ 'common.yuan' | t }}</b></td>
-                      <td class="actions">
-                        <button
-                          type="button"
-                          class="btn btn-outline btn-icon"
-                          [attr.data-tip]="'common.edit' | t"
-                          [attr.aria-label]="'common.edit' | t"
-                          (click)="editCard(c)"
-                        >
-                          ✏️
-                        </button>
-                        <button
-                          type="button"
-                          class="btn btn-danger btn-icon"
-                          [attr.data-tip]="'common.delete' | t"
-                          [attr.aria-label]="'common.delete' | t"
-                          (click)="removeCard(c.id)"
-                        >
-                          🗑️
-                        </button>
-                      </td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            }
-          </div>
+                      </div>
+                    </td>
+                    <td>
+                      @if (c.cardName || c.cardNo) {
+                        {{ c.cardName }}
+                        <span class="text-muted">{{ c.cardNo ? ' #' + c.cardNo : '' }}</span>
+                      } @else {
+                        <span class="text-muted">—</span>
+                      }
+                    </td>
+                    <td><b class="val">{{ c.exchangeValue }} {{ 'common.yuan' | t }}</b></td>
+                    <td class="actions">
+                      <button
+                        type="button"
+                        class="btn btn-outline btn-icon"
+                        [attr.data-tip]="'common.edit' | t"
+                        [attr.aria-label]="'common.edit' | t"
+                        (click)="editCard(c)"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-danger btn-icon"
+                        [attr.data-tip]="'common.delete' | t"
+                        [attr.aria-label]="'common.delete' | t"
+                        (click)="removeCard(c.id)"
+                      >
+                        🗑️
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
         </div>
       </div>
     } @else {
@@ -164,7 +120,6 @@ import { apiErrorI18nKey } from '../../services/telegram.service';
                 <th>{{ 'groups.photo' | t }}</th>
                 <th>{{ 'groups.code' | t }}</th>
                 <th>{{ 'groups.name' | t }}</th>
-                <th>{{ 'groups.exchange' | t }}</th>
                 <th style="width:120px"></th>
               </tr>
             </thead>
@@ -182,7 +137,6 @@ import { apiErrorI18nKey } from '../../services/telegram.service';
                   </td>
                   <td><b>{{ g.code }}</b></td>
                   <td>{{ g.name }}</td>
-                  <td><b class="val">{{ g.exchangeValue }} {{ 'common.yuan' | t }}</b></td>
                   <td class="actions">
                     <button
                       type="button"
@@ -220,6 +174,73 @@ import { apiErrorI18nKey } from '../../services/telegram.service';
       </div>
     }
 
+    @if (cardFormOpen(); as formMg) {
+      <div class="modal-backdrop" (click)="closeCardForm()">
+        <div class="modal form-modal" (click)="$event.stopPropagation()">
+          <h3>{{ (editingCardId() ? 'groups.editCard' : 'groups.addCard') | t }}</h3>
+
+          <div class="form-grid-2">
+            <div class="field">
+              <label>{{ 'aitems.cardName' | t }}</label>
+              <input
+                type="text"
+                [(ngModel)]="cardName"
+                [placeholder]="'aitems.cardNamePlaceholder' | t"
+                autocomplete="off"
+              />
+            </div>
+            <div class="field">
+              <label>{{ 'aitems.cardNo' | t }}</label>
+              <input
+                type="text"
+                [(ngModel)]="cardNo"
+                [placeholder]="'aitems.cardNoPlaceholder' | t"
+                autocomplete="off"
+              />
+            </div>
+          </div>
+
+          <div class="field">
+            <label>{{ 'groups.exchange' | t }}</label>
+            <input type="number" min="0" [(ngModel)]="cardExchange" />
+          </div>
+
+          <div class="field">
+            <label>{{ 'aitems.cardPhoto' | t }}</label>
+            <div class="photo-row">
+              <div
+                class="thumb-lg"
+                [style.background]="isColor(selectedCardPreview(formMg)) ? selectedCardPreview(formMg) : null"
+              >
+                @if (!isColor(selectedCardPreview(formMg)) && selectedCardPreview(formMg)) {
+                  <img [src]="selectedCardPreview(formMg)" alt="preview" />
+                }
+              </div>
+              <div class="photo-inputs">
+                <p class="hint-text" style="margin: 0 0 8px">
+                  {{ cardPhoto() ? ('aitems.cardPhoto' | t) : ('aitems.useGroupPhoto' | t) }}
+                </p>
+                <button type="button" class="btn btn-outline btn-sm" (click)="openCardPhotoPicker()">
+                  🖼️ {{ 'groups.pickCardPhoto' | t }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          @if (cardError()) {
+            <p class="error-text">{{ cardError() | t }}</p>
+          }
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-outline" (click)="closeCardForm()">{{ 'common.cancel' | t }}</button>
+            <button type="button" class="btn btn-primary" (click)="saveCard()">
+              {{ (editingCardId() ? 'common.save' : 'groups.addCard') | t }}
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+
     @if (groupFormOpen()) {
       <div class="modal-backdrop" (click)="closeGroupForm()">
         <div class="modal form-modal" (click)="$event.stopPropagation()">
@@ -234,11 +255,6 @@ import { apiErrorI18nKey } from '../../services/telegram.service';
               <label>{{ 'groups.name' | t }}</label>
               <input type="text" [(ngModel)]="name" [placeholder]="'groups.namePlaceholder' | t" autocomplete="off" />
             </div>
-          </div>
-
-          <div class="field">
-            <label>{{ 'groups.exchange' | t }}</label>
-            <input type="number" min="0" [(ngModel)]="exchangeValue" />
           </div>
 
           <div class="field">
@@ -500,7 +516,6 @@ export class GroupsAdmin {
 
   code = '';
   name = '';
-  exchangeValue = 0;
   photo = '#6366f1';
 
   editingId = signal<string | null>(null);
@@ -509,6 +524,8 @@ export class GroupsAdmin {
   picker = signal(false);
 
   managingGroup = signal<Group | null>(null);
+  /** 開啟時帶入目前管理的團，供表單預覽用 */
+  cardFormOpen = signal<Group | null>(null);
   editingCardId = signal<string | null>(null);
   cardError = signal('');
   cardName = '';
@@ -563,7 +580,6 @@ export class GroupsAdmin {
     const payload = {
       code: this.code.trim(),
       name: this.name.trim(),
-      exchangeValue: Number(this.exchangeValue) || 0,
       photo: this.photo.trim() || '#6366f1',
     };
     const id = this.editingId();
@@ -579,7 +595,6 @@ export class GroupsAdmin {
     this.editingId.set(g.id);
     this.code = g.code;
     this.name = g.name;
-    this.exchangeValue = g.exchangeValue;
     this.photo = g.photo;
     this.error.set('');
     this.groupFormOpen.set(true);
@@ -590,22 +605,32 @@ export class GroupsAdmin {
     this.error.set('');
     this.code = '';
     this.name = '';
-    this.exchangeValue = 0;
     this.photo = '#6366f1';
   }
 
   async openCards(g: Group) {
     this.managingGroup.set(g);
     this.resetCardForm();
-    this.cardExchange = g.exchangeValue;
     await this.data.refreshGroupCards(g.id);
   }
 
   closeCards() {
     this.managingGroup.set(null);
-    this.resetCardForm();
+    this.closeCardForm();
     this.closeCardPhotoPicker();
     this.data.groupCards.set([]);
+  }
+
+  openAddCard() {
+    const g = this.managingGroup();
+    if (!g) return;
+    this.resetCardForm();
+    this.cardFormOpen.set(g);
+  }
+
+  closeCardForm() {
+    this.cardFormOpen.set(null);
+    this.resetCardForm();
   }
 
   async openCardPhotoPicker() {
@@ -652,21 +677,23 @@ export class GroupsAdmin {
   }
 
   editCard(c: GroupCard) {
+    const g = this.managingGroup();
+    if (!g) return;
     this.editingCardId.set(c.id);
     this.cardName = c.cardName ?? '';
     this.cardNo = c.cardNo ?? '';
     this.cardExchange = c.exchangeValue;
-    const g = this.managingGroup();
-    this.cardPhoto.set(g && c.photo === g.photo ? '' : c.photo);
+    this.cardPhoto.set(c.photo === g.photo ? '' : c.photo);
+    this.cardError.set('');
+    this.cardFormOpen.set(g);
   }
 
   resetCardForm() {
-    const g = this.managingGroup();
     this.editingCardId.set(null);
     this.cardError.set('');
     this.cardName = '';
     this.cardNo = '';
-    this.cardExchange = g?.exchangeValue ?? 0;
+    this.cardExchange = 0;
     this.cardPhoto.set('');
   }
 
@@ -690,13 +717,13 @@ export class GroupsAdmin {
     } else {
       await this.data.addGroupCard(g.id, payload);
     }
-    this.resetCardForm();
+    this.closeCardForm();
   }
 
   async removeCard(id: string) {
     const g = this.managingGroup();
     if (!g) return;
     await this.data.deleteGroupCard(id, g.id);
-    if (this.editingCardId() === id) this.resetCardForm();
+    if (this.editingCardId() === id) this.closeCardForm();
   }
 }

@@ -1,5 +1,6 @@
 package com.cardbeamz.group;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -30,8 +31,14 @@ public class GroupEntity {
   @Column(nullable = false, length = 1000)
   private String photo;
 
+  /**
+   * 舊欄位保留以相容既有 DB（NOT NULL）；業務上換團拆金改在卡片上。
+   * 不對外回傳。
+   */
+  @JsonIgnore
+  @Builder.Default
   @Column(nullable = false)
-  private int exchangeValue;
+  private int exchangeValue = 0;
 
   @Column(nullable = false)
   private Instant createdAt;

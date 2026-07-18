@@ -76,8 +76,6 @@ export interface Group {
   name: string;
   /** 分團照（圖片網址，可為 Cloudinary URL 或色碼） */
   photo: string;
-  /** 換團拆金金額 */
-  exchangeValue: number;
   createdAt: string;
 }
 

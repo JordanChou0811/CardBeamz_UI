@@ -75,7 +75,7 @@ public class DataSeeder implements CommandLineRunner {
               .code(code)
               .name(code + " 團")
               .photo(palette[i])
-              .exchangeValue(exchangeValues[i])
+              .exchangeValue(0)
               .createdAt(now)
               .build());
 

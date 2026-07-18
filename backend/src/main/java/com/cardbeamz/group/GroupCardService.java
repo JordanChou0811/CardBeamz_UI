@@ -47,7 +47,7 @@ public class GroupCardService {
             .cardName(blankToNull(cardName))
             .cardNo(blankToNull(cardNo))
             .photo(photo == null || photo.isBlank() ? group.getPhoto() : photo)
-            .exchangeValue(exchangeValue == null ? group.getExchangeValue() : Math.max(0, exchangeValue))
+            .exchangeValue(exchangeValue == null ? 0 : Math.max(0, exchangeValue))
             .createdAt(Instant.now())
             .build();
     cardRepository.save(card);

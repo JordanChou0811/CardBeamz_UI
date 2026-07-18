@@ -495,7 +495,7 @@ export class DataService {
         cardName: data.cardName?.trim() || undefined,
         cardNo: data.cardNo?.trim() || undefined,
         photo: data.photo?.trim() || group?.photo || '#6366f1',
-        exchangeValue: data.exchangeValue ?? group?.exchangeValue ?? 0,
+        exchangeValue: data.exchangeValue ?? 0,
         createdAt: new Date().toISOString(),
       };
       const all = [card, ...load<GroupCard[]>(KEYS.groupCards, [])];
@@ -687,7 +687,6 @@ export class DataService {
       code: `CBZ${(idx + 1).toString().padStart(2, '0')}`,
       name: `CBZ${(idx + 1).toString().padStart(2, '0')} 團`,
       photo: palette[idx % palette.length],
-      exchangeValue: exchangeValues[idx],
       createdAt: new Date().toISOString(),
     }));
     save(KEYS.groups, groups);

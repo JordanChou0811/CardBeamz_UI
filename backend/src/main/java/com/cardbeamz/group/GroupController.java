@@ -29,11 +29,7 @@ public class GroupController {
         "create",
         "新增團",
         "已建立",
-        groupService.create(
-            req.getCode(),
-            req.getName(),
-            req.getPhoto(),
-            req.getExchangeValue() == null ? 0 : req.getExchangeValue()));
+        groupService.create(req.getCode(), req.getName(), req.getPhoto()));
   }
 
   @PostMapping("/update")
@@ -42,7 +38,7 @@ public class GroupController {
         "group",
         "update",
         "修改團",
-        groupService.update(req.getId(), req.getCode(), req.getName(), req.getPhoto(), req.getExchangeValue()));
+        groupService.update(req.getId(), req.getCode(), req.getName(), req.getPhoto()));
   }
 
   @PostMapping("/delete")
@@ -56,7 +52,6 @@ public class GroupController {
     private String code;
     private String name;
     private String photo;
-    private Integer exchangeValue;
   }
 
   @Data
