@@ -5,6 +5,7 @@ import { CloudinaryService, UploadedImage } from '../../services/cloudinary.serv
 import { Group, GroupCard } from '../../models/models';
 import { TranslatePipe } from '../../services/translate.pipe';
 import { apiErrorI18nKey } from '../../services/telegram.service';
+import { ConfirmService } from '../../services/confirm.service';
 
 @Component({
   selector: 'app-groups-admin',
@@ -161,7 +162,7 @@ import { apiErrorI18nKey } from '../../services/telegram.service';
                       class="btn btn-danger btn-icon"
                       [attr.data-tip]="'common.delete' | t"
                       [attr.aria-label]="'common.delete' | t"
-                      (click)="data.deleteGroup(g.id)"
+                      (click)="askDeleteGroup(g)"
                     >
                       🗑️
                     </button>
@@ -513,6 +514,7 @@ import { apiErrorI18nKey } from '../../services/telegram.service';
 export class GroupsAdmin {
   protected data = inject(DataService);
   protected cloud = inject(CloudinaryService);
+  private confirm = inject(ConfirmService);
 
   code = '';
   name = '';
@@ -720,9 +722,25 @@ export class GroupsAdmin {
     this.closeCardForm();
   }
 
+  async askDeleteGroup(g: Group) {
+    const ok = await this.confirm.ask({
+      title: 'confirm.deleteGroup',
+      message: `${g.name}（${g.code}）`,
+    });
+    if (!ok) return;
+    await this.data.deleteGroup(g.id);
+  }
+
   async removeCard(id: string) {
     const g = this.managingGroup();
     if (!g) return;
+    const card = this.data.groupCards().find((c) => c.id === id);
+    const label = [card?.cardName, card?.cardNo ? `#${card.cardNo}` : ''].filter(Boolean).join(' ') || id;
+    const ok = await this.confirm.ask({
+      title: 'confirm.deleteGroupCard',
+      message: label,
+    });
+    if (!ok) return;
     await this.data.deleteGroupCard(id, g.id);
     if (this.editingCardId() === id) this.closeCardForm();
   }

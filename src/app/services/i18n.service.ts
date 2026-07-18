@@ -29,6 +29,18 @@ const DICT: Dict = {
   'common.frontend': { zh: '前台', en: 'Front' },
   'common.edit': { zh: '修改', en: 'Edit' },
   'common.delete': { zh: '刪除', en: 'Delete' },
+  'confirm.irreversible': {
+    zh: '此操作無法復原，確定要繼續嗎？',
+    en: 'This cannot be undone. Continue?',
+  },
+  'confirm.deleteGroup': { zh: '確定刪除此團？', en: 'Delete this group?' },
+  'confirm.deleteGroupCard': { zh: '確定刪除此卡片？', en: 'Delete this card?' },
+  'confirm.removeItem': { zh: '確定收回此卡片？', en: 'Remove this card assignment?' },
+  'confirm.deleteNews': { zh: '確定刪除此消息？', en: 'Delete this news item?' },
+  'confirm.removeUpload': {
+    zh: '確定從清單移除此圖片？（不會刪除 Cloudinary 上的檔案）',
+    en: 'Remove this image from the list? (Cloudinary file is not deleted)',
+  },
   'common.group': { zh: '團', en: 'Group' },
   'common.groupPhoto': { zh: '分團照', en: 'Photo' },
   'common.status': { zh: '狀態', en: 'Status' },

@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
 import { Group, GroupCard, WarehouseItem } from '../../models/models';
 import { TranslatePipe } from '../../services/translate.pipe';
+import { ConfirmService } from '../../services/confirm.service';
 
 @Component({
   selector: 'app-items-admin',
@@ -136,7 +137,7 @@ import { TranslatePipe } from '../../services/translate.pipe';
                   <td><b class="val">{{ it.exchangeValue }} {{ 'common.yuan' | t }}</b></td>
                   <td class="text-muted">{{ it.updatedAt | date: 'yyyy/MM/dd HH:mm' }}</td>
                   <td>
-                    <button class="btn btn-danger btn-sm" (click)="data.removeItem(it.id)">{{ 'aitems.remove' | t }}</button>
+                    <button class="btn btn-danger btn-sm" (click)="askRemove(it)">{{ 'aitems.remove' | t }}</button>
                   </td>
                 </tr>
               }
@@ -229,6 +230,7 @@ import { TranslatePipe } from '../../services/translate.pipe';
 })
 export class ItemsAdmin {
   protected data = inject(DataService);
+  private confirm = inject(ConfirmService);
 
   memberId = '';
   groupId = '';
@@ -295,5 +297,16 @@ export class ItemsAdmin {
     this.success.set(created.length);
     this.groupCardId = '';
     this.quantity = 1;
+  }
+
+  async askRemove(it: WarehouseItem) {
+    const card = [it.cardName, it.cardNo ? `#${it.cardNo}` : ''].filter(Boolean).join(' ');
+    const ok = await this.confirm.ask({
+      title: 'confirm.removeItem',
+      message: `${this.memberName(it.memberId)} · ${it.cbz}${card ? ' · ' + card : ''}`,
+      confirmKey: 'aitems.remove',
+    });
+    if (!ok) return;
+    await this.data.removeItem(it.id);
   }
 }

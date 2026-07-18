@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
 import { NewsCategory, NewsItem } from '../../models/models';
 import { TranslatePipe } from '../../services/translate.pipe';
+import { ConfirmService } from '../../services/confirm.service';
 
 @Component({
   selector: 'app-pages-admin',
@@ -64,7 +65,7 @@ import { TranslatePipe } from '../../services/translate.pipe';
               <p class="text-muted preview">{{ n.content }}</p>
               <div class="row">
                 <button class="btn btn-outline btn-sm" (click)="edit(n)">{{ 'common.edit' | t }}</button>
-                <button class="btn btn-danger btn-sm" (click)="data.deleteNews(n.id)">{{ 'common.delete' | t }}</button>
+                <button class="btn btn-danger btn-sm" (click)="askDelete(n)">{{ 'common.delete' | t }}</button>
               </div>
             </div>
           }
@@ -104,6 +105,7 @@ import { TranslatePipe } from '../../services/translate.pipe';
 })
 export class PagesAdmin {
   protected data = inject(DataService);
+  private confirm = inject(ConfirmService);
 
   category: NewsCategory = 'service';
   title = '';
@@ -150,5 +152,15 @@ export class PagesAdmin {
     this.title = '';
     this.content = '';
     this.category = 'service';
+  }
+
+  async askDelete(n: NewsItem) {
+    const ok = await this.confirm.ask({
+      title: 'confirm.deleteNews',
+      message: n.title,
+    });
+    if (!ok) return;
+    await this.data.deleteNews(n.id);
+    if (this.editingId() === n.id) this.resetForm();
   }
 }

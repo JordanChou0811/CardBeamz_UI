@@ -5,6 +5,7 @@ import { CloudinaryService, UploadedImage } from '../../services/cloudinary.serv
 import { CLOUDINARY, isCloudinaryConfigured } from '../../services/cloudinary.config';
 import { DataService } from '../../services/data.service';
 import { TranslatePipe } from '../../services/translate.pipe';
+import { ConfirmService } from '../../services/confirm.service';
 
 type UploadCategory = 'groups' | 'members' | 'system';
 
@@ -145,7 +146,7 @@ interface Pending {
                 <button class="btn btn-outline btn-sm" (click)="copy(g)">
                   {{ copiedId() === g.publicId ? ('upload.copied' | t) : ('upload.copy' | t) }}
                 </button>
-                <button class="btn btn-danger btn-sm" (click)="cloud.removeFromGallery(g.publicId)">
+                <button class="btn btn-danger btn-sm" (click)="askRemove(g)">
                   {{ 'upload.remove' | t }}
                 </button>
               </div>
@@ -298,6 +299,7 @@ interface Pending {
 export class UploadAdmin {
   protected cloud = inject(CloudinaryService);
   protected data = inject(DataService);
+  private confirm = inject(ConfirmService);
   protected configured = isCloudinaryConfigured();
 
   category: UploadCategory = 'groups';
@@ -405,5 +407,15 @@ export class UploadAdmin {
     }
     this.copiedId.set(g.publicId);
     setTimeout(() => this.copiedId.set(null), 1500);
+  }
+
+  async askRemove(g: UploadedImage) {
+    const ok = await this.confirm.ask({
+      title: 'confirm.removeUpload',
+      message: g.name || g.publicId,
+      confirmKey: 'upload.remove',
+    });
+    if (!ok) return;
+    this.cloud.removeFromGallery(g.publicId);
   }
 }
