@@ -50,7 +50,7 @@ import { apiErrorI18nKey } from '../../services/telegram.service';
 
     @if (formOpen()) {
       <div class="modal-backdrop">
-        <div class="modal">
+        <div class="modal form-modal">
           <h3>{{ mode() === 'create' ? ('amembers.add' | t) : ('amembers.edit' | t) }}</h3>
           <div class="modal-body form-body">
             @if (mode() === 'edit') {

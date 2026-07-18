@@ -177,6 +177,51 @@ a {
   width: 100%;
 }
 
+/* ---- 自訂提示（取代原生 title） ---- */
+[data-tip] {
+  position: relative;
+}
+
+[data-tip]::after,
+[data-tip]::before {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+  z-index: 40;
+}
+
+[data-tip]::after {
+  content: attr(data-tip);
+  bottom: calc(100% + 8px);
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--c-dark);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  box-shadow: var(--shadow-sm);
+}
+
+[data-tip]::before {
+  content: '';
+  bottom: calc(100% + 2px);
+  border: 6px solid transparent;
+  border-top-color: var(--c-dark);
+}
+
+[data-tip]:hover::after,
+[data-tip]:hover::before,
+[data-tip]:focus-visible::after,
+[data-tip]:focus-visible::before {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
 /* ---- 卡片 ---- */
 .card {
   background: var(--c-surface);
@@ -197,14 +242,16 @@ a {
 /* ---- 表單 ---- */
 .field {
   margin-bottom: 16px;
+  text-align: left;
 }
 
 .field label {
   display: block;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  margin-bottom: 6px;
-  color: var(--c-text);
+  margin-bottom: 7px;
+  color: var(--c-muted);
+  letter-spacing: 0.01em;
 }
 
 .field .req {
@@ -212,23 +259,79 @@ a {
   margin-left: 3px;
 }
 
+/* 未寫 type 的 input 預設是 text，但 CSS [type=text] 對不到，故用排除法 */
 .input,
+input:not([type]),
 input[type='text'],
 input[type='password'],
 input[type='tel'],
 input[type='email'],
 input[type='number'],
+input[type='search'],
+input[type='url'],
+input[type='date'],
+input[type='time'],
+input[type='datetime-local'],
 textarea,
 select {
+  display: block;
   width: 100%;
-  padding: 11px 13px;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 11px 14px;
   border: 1.5px solid var(--c-border);
   border-radius: var(--radius-sm);
   font-size: 15px;
   font-family: inherit;
-  background: var(--c-surface);
+  line-height: 1.4;
+  background: var(--c-surface-2);
   color: var(--c-text);
-  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+select {
+  padding-right: 36px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--c-muted) 50%),
+    linear-gradient(135deg, var(--c-muted) 50%, transparent 50%);
+  background-position:
+    calc(100% - 16px) calc(50% - 2px),
+    calc(100% - 11px) calc(50% - 2px);
+  background-size:
+    5px 5px,
+    5px 5px;
+  background-repeat: no-repeat;
+  cursor: pointer;
+}
+
+.input::placeholder,
+input::placeholder,
+textarea::placeholder {
+  color: var(--c-muted);
+  opacity: 0.75;
+}
+
+.input:hover,
+input:not([type]):hover,
+input[type='text']:hover,
+input[type='password']:hover,
+input[type='tel']:hover,
+input[type='email']:hover,
+input[type='number']:hover,
+input[type='search']:hover,
+input[type='url']:hover,
+input[type='date']:hover,
+input[type='time']:hover,
+input[type='datetime-local']:hover,
+textarea:hover,
+select:hover {
+  border-color: color-mix(in srgb, var(--c-primary) 45%, var(--c-border));
 }
 
 .input:focus,
@@ -237,7 +340,27 @@ textarea:focus,
 select:focus {
   outline: none;
   border-color: var(--c-primary);
-  box-shadow: 0 0 0 3px var(--c-primary-light);
+  background: var(--c-surface);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-primary) 22%, transparent);
+}
+
+input:disabled,
+textarea:disabled,
+select:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  background: var(--c-surface-2);
+}
+
+/* Chrome autofill 不要蓋成刺眼白底 */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--c-text);
+  caret-color: var(--c-text);
+  box-shadow: 0 0 0 1000px var(--c-surface-2) inset;
+  border: 1.5px solid var(--c-border);
+  transition: background-color 99999s ease-out;
 }
 
 .input-group {
@@ -257,6 +380,17 @@ select:focus {
 }
 .input-group input {
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 14px;
+}
+@media (max-width: 560px) {
+  .form-grid-2 {
+    grid-template-columns: 1fr;
+  }
 }
 
 .checkbox {
@@ -359,6 +493,7 @@ select:focus {
 }
 .modal {
   background: var(--c-surface);
+  border: 1px solid var(--c-border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   width: 100%;
@@ -369,6 +504,7 @@ select:focus {
 }
 .modal h3 {
   font-size: 20px;
+  margin: 0 0 18px;
 }
 .modal .modal-body {
   color: var(--c-muted);
@@ -379,6 +515,21 @@ select:focus {
   display: flex;
   gap: 10px;
   justify-content: center;
+}
+/* 表單類跳窗：較寬、左對齊 */
+.modal.form-modal {
+  max-width: 560px;
+  text-align: left;
+  padding: 28px 32px;
+}
+.modal.form-modal h3 {
+  text-align: left;
+}
+.modal.form-modal .modal-actions {
+  justify-content: flex-end;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--c-border);
 }
 
 @keyframes fade {

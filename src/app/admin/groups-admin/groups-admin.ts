@@ -91,7 +91,7 @@ import { apiErrorI18nKey } from '../../services/telegram.service';
                     <th>{{ 'aitems.cardPhoto' | t }}</th>
                     <th>{{ 'aitems.card' | t }}</th>
                     <th>{{ 'groups.exchange' | t }}</th>
-                    <th style="width:130px"></th>
+                    <th style="width:90px"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -113,9 +113,25 @@ import { apiErrorI18nKey } from '../../services/telegram.service';
                         }
                       </td>
                       <td><b class="val">{{ c.exchangeValue }} {{ 'common.yuan' | t }}</b></td>
-                      <td>
-                        <button class="btn btn-outline btn-sm" (click)="editCard(c)">{{ 'common.edit' | t }}</button>
-                        <button class="btn btn-danger btn-sm" (click)="removeCard(c.id)">{{ 'common.delete' | t }}</button>
+                      <td class="actions">
+                        <button
+                          type="button"
+                          class="btn btn-outline btn-icon"
+                          [attr.data-tip]="'common.edit' | t"
+                          [attr.aria-label]="'common.edit' | t"
+                          (click)="editCard(c)"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          type="button"
+                          class="btn btn-danger btn-icon"
+                          [attr.data-tip]="'common.delete' | t"
+                          [attr.aria-label]="'common.delete' | t"
+                          (click)="removeCard(c.id)"
+                        >
+                          🗑️
+                        </button>
                       </td>
                     </tr>
                   }
@@ -126,21 +142,103 @@ import { apiErrorI18nKey } from '../../services/telegram.service';
         </div>
       </div>
     } @else {
-      <div class="grid">
-        <div class="card">
-          <div class="card-title">{{ (editingId() ? 'groups.edit' : 'groups.add') | t }}</div>
+      <div class="card">
+        <div class="list-head">
+          <div class="card-title" style="margin: 0">{{ 'groups.list' | t }}</div>
+          <button
+            type="button"
+            class="btn btn-primary btn-icon"
+            [attr.data-tip]="'groups.add' | t"
+            [attr.aria-label]="'groups.add' | t"
+            (click)="openAddGroup()"
+          >
+            +
+          </button>
+        </div>
+        @if (data.groups().length === 0) {
+          <div class="empty"><span class="emoji">🎴</span>{{ 'groups.empty' | t }}</div>
+        } @else {
+          <table class="table">
+            <thead>
+              <tr>
+                <th>{{ 'groups.photo' | t }}</th>
+                <th>{{ 'groups.code' | t }}</th>
+                <th>{{ 'groups.name' | t }}</th>
+                <th>{{ 'groups.exchange' | t }}</th>
+                <th style="width:120px"></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (g of data.groups(); track g.id) {
+                <tr>
+                  <td>
+                    <div class="thumb" [style.background]="isColor(g.photo) ? g.photo : null">
+                      @if (!isColor(g.photo) && g.photo) {
+                        <img [src]="g.photo" alt="" />
+                      } @else {
+                        {{ g.code }}
+                      }
+                    </div>
+                  </td>
+                  <td><b>{{ g.code }}</b></td>
+                  <td>{{ g.name }}</td>
+                  <td><b class="val">{{ g.exchangeValue }} {{ 'common.yuan' | t }}</b></td>
+                  <td class="actions">
+                    <button
+                      type="button"
+                      class="btn btn-primary btn-icon"
+                      [attr.data-tip]="'groups.manageCards' | t"
+                      [attr.aria-label]="'groups.manageCards' | t"
+                      (click)="openCards(g)"
+                    >
+                      🃏
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-outline btn-icon"
+                      [attr.data-tip]="'common.edit' | t"
+                      [attr.aria-label]="'common.edit' | t"
+                      (click)="edit(g)"
+                    >
+                      ✏️
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-danger btn-icon"
+                      [attr.data-tip]="'common.delete' | t"
+                      [attr.aria-label]="'common.delete' | t"
+                      (click)="data.deleteGroup(g.id)"
+                    >
+                      🗑️
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      </div>
+    }
+
+    @if (groupFormOpen()) {
+      <div class="modal-backdrop" (click)="closeGroupForm()">
+        <div class="modal form-modal" (click)="$event.stopPropagation()">
+          <h3>{{ (editingId() ? 'groups.edit' : 'groups.add') | t }}</h3>
+
+          <div class="form-grid-2">
+            <div class="field">
+              <label>{{ 'groups.code' | t }}</label>
+              <input type="text" [(ngModel)]="code" [placeholder]="'groups.codePlaceholder' | t" autocomplete="off" />
+            </div>
+            <div class="field">
+              <label>{{ 'groups.name' | t }}</label>
+              <input type="text" [(ngModel)]="name" [placeholder]="'groups.namePlaceholder' | t" autocomplete="off" />
+            </div>
+          </div>
 
           <div class="field">
-            <label>{{ 'groups.code' | t }}</label>
-            <input [(ngModel)]="code" [placeholder]="'groups.codePlaceholder' | t" />
-          </div>
-          <div class="field">
-            <label>{{ 'groups.name' | t }}</label>
-            <input [(ngModel)]="name" [placeholder]="'groups.namePlaceholder' | t" />
-          </div>
-          <div class="field">
             <label>{{ 'groups.exchange' | t }}</label>
-            <input type="number" [(ngModel)]="exchangeValue" />
+            <input type="number" min="0" [(ngModel)]="exchangeValue" />
           </div>
 
           <div class="field">
@@ -152,7 +250,7 @@ import { apiErrorI18nKey } from '../../services/telegram.service';
                 }
               </div>
               <div class="photo-inputs">
-                <input [(ngModel)]="photo" [placeholder]="'groups.photoUrl' | t" />
+                <input type="text" [(ngModel)]="photo" [placeholder]="'groups.photoUrl' | t" autocomplete="off" />
                 <button type="button" class="btn btn-outline btn-sm mt-1" (click)="openPicker()">
                   🖼️ {{ 'groups.pickPhoto' | t }}
                 </button>
@@ -164,56 +262,12 @@ import { apiErrorI18nKey } from '../../services/telegram.service';
             <p class="error-text">{{ error() | t }}</p>
           }
 
-          <div class="row">
-            <button class="btn btn-primary" (click)="save()">
+          <div class="modal-actions">
+            <button type="button" class="btn btn-outline" (click)="closeGroupForm()">{{ 'common.cancel' | t }}</button>
+            <button type="button" class="btn btn-primary" (click)="save()">
               {{ (editingId() ? 'common.save' : 'groups.add') | t }}
             </button>
-            @if (editingId()) {
-              <button class="btn btn-outline" (click)="resetForm()">{{ 'common.cancel' | t }}</button>
-            }
           </div>
-        </div>
-
-        <div class="card">
-          <div class="card-title">{{ 'groups.list' | t }}</div>
-          @if (data.groups().length === 0) {
-            <div class="empty"><span class="emoji">🎴</span>{{ 'groups.empty' | t }}</div>
-          } @else {
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>{{ 'groups.photo' | t }}</th>
-                  <th>{{ 'groups.code' | t }}</th>
-                  <th>{{ 'groups.name' | t }}</th>
-                  <th>{{ 'groups.exchange' | t }}</th>
-                  <th style="width:200px"></th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (g of data.groups(); track g.id) {
-                  <tr>
-                    <td>
-                      <div class="thumb" [style.background]="isColor(g.photo) ? g.photo : null">
-                        @if (!isColor(g.photo) && g.photo) {
-                          <img [src]="g.photo" alt="" />
-                        } @else {
-                          {{ g.code }}
-                        }
-                      </div>
-                    </td>
-                    <td><b>{{ g.code }}</b></td>
-                    <td>{{ g.name }}</td>
-                    <td><b class="val">{{ g.exchangeValue }} {{ 'common.yuan' | t }}</b></td>
-                    <td class="actions">
-                      <button class="btn btn-primary btn-sm" (click)="openCards(g)">{{ 'groups.manageCards' | t }}</button>
-                      <button class="btn btn-outline btn-sm" (click)="edit(g)">{{ 'common.edit' | t }}</button>
-                      <button class="btn btn-danger btn-sm" (click)="data.deleteGroup(g.id)">{{ 'common.delete' | t }}</button>
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          }
         </div>
       </div>
     }
@@ -304,6 +358,13 @@ import { apiErrorI18nKey } from '../../services/telegram.service';
       .mb {
         margin-bottom: 18px;
       }
+      .list-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
       .grid {
         display: grid;
         grid-template-columns: 360px 1fr;
@@ -319,9 +380,16 @@ import { apiErrorI18nKey } from '../../services/telegram.service';
       .photo-row {
         display: flex;
         gap: 12px;
+        align-items: flex-start;
       }
       .photo-inputs {
         flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      .photo-inputs .btn {
+        align-self: flex-start;
       }
       .thumb-lg {
         width: 72px;
@@ -346,10 +414,26 @@ import { apiErrorI18nKey } from '../../services/telegram.service';
       .val {
         color: var(--c-primary);
       }
-      td .btn,
-      .actions .btn {
-        margin-right: 6px;
-        margin-bottom: 4px;
+      .actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+      }
+      .btn-icon {
+        width: 34px;
+        height: 34px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 15px;
+        line-height: 1;
+        flex: 0 0 auto;
+      }
+      .list-head .btn-icon {
+        font-size: 22px;
+        font-weight: 500;
       }
       .two-col {
         display: grid;
@@ -420,6 +504,7 @@ export class GroupsAdmin {
   photo = '#6366f1';
 
   editingId = signal<string | null>(null);
+  groupFormOpen = signal(false);
   error = signal('');
   picker = signal(false);
 
@@ -459,6 +544,16 @@ export class GroupsAdmin {
     this.picker.set(false);
   }
 
+  openAddGroup() {
+    this.resetForm();
+    this.groupFormOpen.set(true);
+  }
+
+  closeGroupForm() {
+    this.groupFormOpen.set(false);
+    this.resetForm();
+  }
+
   async save() {
     this.error.set('');
     if (!this.code.trim() || !this.name.trim()) {
@@ -477,7 +572,7 @@ export class GroupsAdmin {
     } else {
       await this.data.addGroup(payload);
     }
-    this.resetForm();
+    this.closeGroupForm();
   }
 
   edit(g: Group) {
@@ -486,10 +581,13 @@ export class GroupsAdmin {
     this.name = g.name;
     this.exchangeValue = g.exchangeValue;
     this.photo = g.photo;
+    this.error.set('');
+    this.groupFormOpen.set(true);
   }
 
   resetForm() {
     this.editingId.set(null);
+    this.error.set('');
     this.code = '';
     this.name = '';
     this.exchangeValue = 0;
