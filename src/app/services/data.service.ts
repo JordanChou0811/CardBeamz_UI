@@ -1,6 +1,7 @@
 import { Injectable, Injector, signal } from '@angular/core';
 import {
   Group,
+  GroupCard,
   Member,
   NewsItem,
   Order,
@@ -18,6 +19,7 @@ const KEYS = {
   orders: 'cbz_orders',
   news: 'cbz_news',
   groups: 'cbz_groups',
+  groupCards: 'cbz_group_cards',
   seq: 'cbz_member_seq',
 };
 
@@ -47,6 +49,8 @@ export class DataService {
   readonly orders = signal<Order[]>([]);
   readonly news = signal<NewsItem[]>([]);
   readonly groups = signal<Group[]>([]);
+  /** 目前載入的團卡片目錄（依 refreshGroupCards 的 groupId） */
+  readonly groupCards = signal<GroupCard[]>([]);
   readonly ready = signal(false);
   readonly loadError = signal('');
 
@@ -63,6 +67,7 @@ export class DataService {
       this.orders.set(load(KEYS.orders, []));
       this.news.set(load(KEYS.news, []));
       this.groups.set(load(KEYS.groups, []));
+      this.groupCards.set([]);
       this.ready.set(true);
     }
   }
@@ -452,10 +457,119 @@ export class DataService {
       const next = this.groups().filter((g) => g.id !== id);
       this.groups.set(next);
       save(KEYS.groups, next);
+      const cards = load<GroupCard[]>(KEYS.groupCards, []).filter((c) => c.groupId !== id);
+      save(KEYS.groupCards, cards);
+      if (this.groupCards().some((c) => c.groupId === id)) {
+        this.groupCards.set(this.groupCards().filter((c) => c.groupId !== id));
+      }
       return;
     }
     await this.api.post('group', 'delete', { id });
     await this.refreshGroups();
+  }
+
+  // ========== 團卡片目錄 ==========
+  async refreshGroupCards(groupId: string): Promise<void> {
+    if (!groupId) {
+      this.groupCards.set([]);
+      return;
+    }
+    if (!environment.useApi) {
+      const all = load<GroupCard[]>(KEYS.groupCards, []);
+      this.groupCards.set(all.filter((c) => c.groupId === groupId));
+      return;
+    }
+    const res = await this.api.get<{ cards: GroupCard[] }>('group-card', 'list', { groupId });
+    this.groupCards.set(res.data.cards ?? []);
+  }
+
+  async addGroupCard(
+    groupId: string,
+    data: { cardName?: string; cardNo?: string; photo?: string; exchangeValue?: number }
+  ): Promise<void> {
+    if (!environment.useApi) {
+      const group = this.groups().find((g) => g.id === groupId);
+      const card: GroupCard = {
+        id: newId('GCARD'),
+        groupId,
+        cardName: data.cardName?.trim() || undefined,
+        cardNo: data.cardNo?.trim() || undefined,
+        photo: data.photo?.trim() || group?.photo || '#6366f1',
+        exchangeValue: data.exchangeValue ?? group?.exchangeValue ?? 0,
+        createdAt: new Date().toISOString(),
+      };
+      const all = [card, ...load<GroupCard[]>(KEYS.groupCards, [])];
+      save(KEYS.groupCards, all);
+      this.groupCards.set(all.filter((c) => c.groupId === groupId));
+      return;
+    }
+    await this.api.post('group-card', 'create', { groupId, ...data });
+    await this.refreshGroupCards(groupId);
+  }
+
+  async updateGroupCard(
+    id: string,
+    groupId: string,
+    patch: { cardName?: string; cardNo?: string; photo?: string; exchangeValue?: number }
+  ): Promise<void> {
+    if (!environment.useApi) {
+      const all = load<GroupCard[]>(KEYS.groupCards, []).map((c) =>
+        c.id === id
+          ? {
+              ...c,
+              ...patch,
+              cardName: patch.cardName !== undefined ? patch.cardName.trim() || undefined : c.cardName,
+              cardNo: patch.cardNo !== undefined ? patch.cardNo.trim() || undefined : c.cardNo,
+            }
+          : c
+      );
+      save(KEYS.groupCards, all);
+      this.groupCards.set(all.filter((c) => c.groupId === groupId));
+      return;
+    }
+    await this.api.post('group-card', 'update', { id, ...patch });
+    await this.refreshGroupCards(groupId);
+  }
+
+  async deleteGroupCard(id: string, groupId: string): Promise<void> {
+    if (!environment.useApi) {
+      const all = load<GroupCard[]>(KEYS.groupCards, []).filter((c) => c.id !== id);
+      save(KEYS.groupCards, all);
+      this.groupCards.set(all.filter((c) => c.groupId === groupId));
+      return;
+    }
+    await this.api.post('group-card', 'delete', { id });
+    await this.refreshGroupCards(groupId);
+  }
+
+  async assignFromCatalog(
+    memberId: string,
+    groupCardId: string,
+    quantity = 1
+  ): Promise<WarehouseItem[]> {
+    if (!environment.useApi) {
+      const card = load<GroupCard[]>(KEYS.groupCards, []).find((c) => c.id === groupCardId);
+      const group = card ? this.groups().find((g) => g.id === card.groupId) : undefined;
+      if (!card || !group) return [];
+      return this.assignItems(
+        memberId,
+        {
+          name: group.code,
+          photo: card.photo,
+          exchangeValue: card.exchangeValue,
+          cardName: card.cardName,
+          cardNo: card.cardNo,
+        },
+        quantity
+      );
+    }
+    const res = await this.api.post<WarehouseItem[]>('warehouse', 'assign', {
+      memberId,
+      groupCardId,
+      quantity: Math.max(1, Math.floor(quantity) || 1),
+    });
+    await this.refreshItems(undefined, 'in_warehouse');
+    return res.data ?? [];
   }
 
   // ========== 消息 ==========

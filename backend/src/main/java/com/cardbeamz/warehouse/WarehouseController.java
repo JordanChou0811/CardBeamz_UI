@@ -49,18 +49,25 @@ public class WarehouseController {
   /** 後台分派卡片（前端 items-admin 對應） */
   @PostMapping("/assign")
   public ApiResponse<List<WarehouseItem>> assign(@RequestBody AssignRequest req) {
-    return ApiResponse.ok(
-        "warehouse",
-        "assign",
-        "分派卡片",
-        warehouseService.assign(
-            req.getMemberId(),
-            req.getCbz(),
-            req.getGroupPhoto(),
-            req.getExchangeValue(),
-            req.getCardName(),
-            req.getCardNo(),
-            req.getQuantity() == null ? 1 : req.getQuantity()));
+    List<WarehouseItem> created;
+    if (req.getGroupCardId() != null && !req.getGroupCardId().isBlank()) {
+      created =
+          warehouseService.assignFromCatalog(
+              req.getMemberId(),
+              req.getGroupCardId(),
+              req.getQuantity() == null ? 1 : req.getQuantity());
+    } else {
+      created =
+          warehouseService.assign(
+              req.getMemberId(),
+              req.getCbz(),
+              req.getGroupPhoto(),
+              req.getExchangeValue(),
+              req.getCardName(),
+              req.getCardNo(),
+              req.getQuantity() == null ? 1 : req.getQuantity());
+    }
+    return ApiResponse.ok("warehouse", "assign", "分派卡片", created);
   }
 
   @PostMapping("/remove")
@@ -84,6 +91,8 @@ public class WarehouseController {
   @Data
   public static class AssignRequest {
     private String memberId;
+    /** 從團卡片目錄分派時使用；有值則忽略下方手動欄位 */
+    private String groupCardId;
     private String cbz;
     private String groupPhoto;
     private int exchangeValue;

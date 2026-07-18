@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class GroupService {
 
   private final GroupRepository groupRepository;
+  private final GroupCardRepository groupCardRepository;
 
   public Map<String, Object> list() {
     List<GroupEntity> groups = groupRepository.findAll();
@@ -62,6 +63,7 @@ public class GroupService {
     if (!groupRepository.existsById(id)) {
       throw new ApiException("group", "delete", "刪除團", ReturnCodes.GROUP_NOT_FOUND, "團不存在");
     }
+    groupCardRepository.deleteByGroupId(id);
     groupRepository.deleteById(id);
     return Map.of("id", id);
   }

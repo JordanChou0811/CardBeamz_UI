@@ -55,6 +55,8 @@ export const ReturnCodes = {
   GROUP_CODE_EXISTS: '4001',
   /** 團不存在 */
   GROUP_NOT_FOUND: '4002',
+  /** 團卡片目錄項目不存在 */
+  GROUP_CARD_NOT_FOUND: '4101',
 
   // ----- news 5xxx -----
   /** 消息不存在 */
@@ -95,6 +97,7 @@ export const RETURN_CODE_I18N: Record<string, string> = {
   // group
   [ReturnCodes.GROUP_CODE_EXISTS]: 'api.err.4001',
   [ReturnCodes.GROUP_NOT_FOUND]: 'api.err.4002',
+  [ReturnCodes.GROUP_CARD_NOT_FOUND]: 'api.err.4101',
   // news
   [ReturnCodes.NEWS_NOT_FOUND]: 'api.err.5001',
   // system

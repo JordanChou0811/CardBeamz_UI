@@ -3,6 +3,10 @@ package com.cardbeamz.warehouse;
 import com.cardbeamz.common.ApiException;
 import com.cardbeamz.common.IdGenerator;
 import com.cardbeamz.common.ReturnCodes;
+import com.cardbeamz.group.GroupCard;
+import com.cardbeamz.group.GroupCardService;
+import com.cardbeamz.group.GroupEntity;
+import com.cardbeamz.group.GroupRepository;
 import com.cardbeamz.member.MemberService;
 import com.cardbeamz.order.OrderEntity;
 import com.cardbeamz.order.OrderRepository;
@@ -25,6 +29,8 @@ public class WarehouseService {
   private final WarehouseItemRepository itemRepository;
   private final OrderRepository orderRepository;
   private final MemberService memberService;
+  private final GroupCardService groupCardService;
+  private final GroupRepository groupRepository;
 
   public Map<String, Object> list(String memberId, String status) {
     List<WarehouseItem> items;
@@ -155,6 +161,28 @@ public class WarehouseService {
       created.add(item);
     }
     return itemRepository.saveAll(created);
+  }
+
+  /** 從團卡片目錄分派給會員 */
+  @Transactional
+  public List<WarehouseItem> assignFromCatalog(String memberId, String groupCardId, int quantity) {
+    memberService.require(memberId);
+    GroupCard card = groupCardService.requireCard(groupCardId);
+    GroupEntity group =
+        groupRepository
+            .findById(card.getGroupId())
+            .orElseThrow(
+                () ->
+                    new ApiException(
+                        "warehouse", "assign", "分派卡片", ReturnCodes.GROUP_NOT_FOUND, "團不存在")); // 4002
+    return assign(
+        memberId,
+        group.getCode(),
+        card.getPhoto(),
+        card.getExchangeValue(),
+        card.getCardName(),
+        card.getCardNo(),
+        quantity);
   }
 
   @Transactional

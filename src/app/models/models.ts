@@ -81,6 +81,17 @@ export interface Group {
   createdAt: string;
 }
 
+/** 團的卡片目錄（尚未分派給會員） */
+export interface GroupCard {
+  id: string;
+  groupId: string;
+  cardName?: string;
+  cardNo?: string;
+  photo: string;
+  exchangeValue: number;
+  createdAt: string;
+}
+
 export type NewsCategory = 'service' | 'maintenance';
 
 export interface NewsItem {

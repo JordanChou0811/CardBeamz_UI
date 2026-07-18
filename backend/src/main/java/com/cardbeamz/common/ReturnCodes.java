@@ -62,6 +62,8 @@ public final class ReturnCodes {
   public static final String GROUP_CODE_EXISTS = "4001";
   /** 團不存在 */
   public static final String GROUP_NOT_FOUND = "4002";
+  /** 團卡片目錄項目不存在 */
+  public static final String GROUP_CARD_NOT_FOUND = "4101";
 
   // ----- news 5xxx -----
   /** 消息不存在 */

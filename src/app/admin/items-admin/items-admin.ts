@@ -2,8 +2,7 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
-import { CloudinaryService, UploadedImage } from '../../services/cloudinary.service';
-import { Group, WarehouseItem } from '../../models/models';
+import { Group, GroupCard, WarehouseItem } from '../../models/models';
 import { TranslatePipe } from '../../services/translate.pipe';
 
 @Component({
@@ -31,7 +30,7 @@ import { TranslatePipe } from '../../services/translate.pipe';
           @if (data.groups().length === 0) {
             <p class="hint-text">{{ 'aitems.noGroups' | t }}</p>
           } @else {
-            <select [(ngModel)]="groupId" (ngModelChange)="onGroupChange()">
+            <select [(ngModel)]="groupId" (ngModelChange)="onGroupChange($event)">
               <option value="">{{ 'aitems.selectGroup' | t }}</option>
               @for (g of data.groups(); track g.id) {
                 <option [value]="g.id">{{ g.name }}（{{ g.code }}）</option>
@@ -40,52 +39,44 @@ import { TranslatePipe } from '../../services/translate.pipe';
           }
         </div>
 
-        @if (selectedGroup(); as g) {
+        @if (groupId) {
           <div class="field">
-            <label>{{ 'aitems.cardPhoto' | t }}</label>
-            <div class="card-pick">
-              <button
-                type="button"
-                class="pick-tile def"
-                [class.active]="cardPhoto() === ''"
-                [style.background]="isColor(g.photo) ? g.photo : null"
-                (click)="cardPhoto.set('')"
-              >
-                @if (!isColor(g.photo) && g.photo) {
-                  <img [src]="g.photo" alt="" />
+            <label>{{ 'aitems.card' | t }}</label>
+            @if (data.groupCards().length === 0) {
+              <p class="hint-text">{{ 'aitems.noCards' | t }}</p>
+            } @else {
+              <div class="card-pick">
+                @for (c of data.groupCards(); track c.id) {
+                  <button
+                    type="button"
+                    class="pick-tile"
+                    [class.active]="groupCardId === c.id"
+                    [style.background]="isColor(c.photo) ? c.photo : null"
+                    (click)="groupCardId = c.id"
+                    [title]="cardLabel(c)"
+                  >
+                    @if (!isColor(c.photo) && c.photo) {
+                      <img [src]="c.photo" [alt]="cardLabel(c)" />
+                    }
+                    <span class="tag">{{ cardLabel(c) }}</span>
+                  </button>
                 }
-                <span class="tag">{{ 'aitems.useGroupPhoto' | t }}</span>
-              </button>
-              @for (img of groupImages(); track img.publicId) {
-                <button
-                  type="button"
-                  class="pick-tile"
-                  [class.active]="cardPhoto() === img.url"
-                  (click)="cardPhoto.set(img.url)"
-                >
-                  <img [src]="img.url" [alt]="img.name" />
-                </button>
-              }
-            </div>
-            @if (groupImages().length === 0) {
-              <p class="hint-text">{{ 'aitems.noCardImages' | t }}</p>
+              </div>
             }
           </div>
+        }
 
-          <div class="two-col">
-            <div class="field">
-              <label>{{ 'aitems.cardName' | t }}</label>
-              <input [(ngModel)]="cardName" [placeholder]="'aitems.cardNamePlaceholder' | t" />
+        @if (selectedCard(); as c) {
+          <div class="preview">
+            <div class="thumb" [style.background]="isColor(c.photo) ? c.photo : null">
+              @if (!isColor(c.photo) && c.photo) {
+                <img [src]="c.photo" alt="" />
+              }
             </div>
-            <div class="field">
-              <label>{{ 'aitems.cardNo' | t }}</label>
-              <input [(ngModel)]="cardNo" [placeholder]="'aitems.cardNoPlaceholder' | t" />
+            <div>
+              <div><b>{{ cardLabel(c) }}</b></div>
+              <div class="val">{{ c.exchangeValue }} {{ 'common.yuan' | t }}</div>
             </div>
-          </div>
-
-          <div class="field">
-            <label>{{ 'groups.exchange' | t }}</label>
-            <input type="number" min="0" [(ngModel)]="exchangeValue" />
           </div>
         }
 
@@ -171,10 +162,15 @@ import { TranslatePipe } from '../../services/translate.pipe';
         height: 100%;
         object-fit: cover;
       }
-      .two-col {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0 12px;
+      .preview {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        margin-bottom: 12px;
+        padding: 10px;
+        background: var(--c-surface-2);
+        border-radius: 10px;
+        border: 1px solid var(--c-border);
       }
       .card-pick {
         display: grid;
@@ -212,6 +208,9 @@ import { TranslatePipe } from '../../services/translate.pipe';
         padding: 2px;
         background: rgba(0, 0, 0, 0.45);
         color: #fff;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       .val {
         color: var(--c-primary);
@@ -230,25 +229,11 @@ import { TranslatePipe } from '../../services/translate.pipe';
 })
 export class ItemsAdmin {
   protected data = inject(DataService);
-  private cloud = inject(CloudinaryService);
 
   memberId = '';
   groupId = '';
-  cardName = '';
-  cardNo = '';
+  groupCardId = '';
   quantity = 1;
-
-  constructor() {
-    void Promise.all([
-      this.data.refreshMembers(),
-      this.data.refreshGroups(),
-      this.data.refreshItems(undefined, 'in_warehouse'),
-    ]);
-  }
-
-  /** 這張卡片要用的圖；'' 代表沿用團預設圖 */
-  cardPhoto = signal('');
-  exchangeValue = signal(0);
 
   error = signal('');
   success = signal(0);
@@ -259,23 +244,21 @@ export class ItemsAdmin {
     this.data.groups().find((g) => g.id === this.groupId)
   );
 
-  /** 該團資料夾（cardbeamz/groups/{代號或團名}）裡已上傳的卡圖 */
-  groupImages = computed<UploadedImage[]>(() => {
-    const g = this.selectedGroup();
-    if (!g) return [];
-    const keys = [g.code, g.name.trim().split(/\s+/)[0]]
-      .map((k) => k.replace(/[\\/?#%]/g, '').trim())
-      .filter(Boolean);
-    return this.cloud.gallery().filter((img) => {
-      const folder = img.folder || '';
-      if (!folder.includes('groups/')) return false;
-      return keys.some((k) => folder.endsWith(`/${k}`) || folder.endsWith(`groups/${k}`));
-    });
-  });
+  selectedCard = computed<GroupCard | undefined>(() =>
+    this.data.groupCards().find((c) => c.id === this.groupCardId)
+  );
 
   warehouseItems = computed<WarehouseItem[]>(() =>
     this.data.items().filter((i) => i.status === 'in_warehouse')
   );
+
+  constructor() {
+    void Promise.all([
+      this.data.refreshMembers(),
+      this.data.refreshGroups(),
+      this.data.refreshItems(undefined, 'in_warehouse'),
+    ]);
+  }
 
   isColor(value: string): boolean {
     return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value?.trim() ?? '');
@@ -285,36 +268,32 @@ export class ItemsAdmin {
     return this.data.findMember(id)?.name ?? '—';
   }
 
-  onGroupChange() {
-    this.cardPhoto.set('');
-    this.exchangeValue.set(this.selectedGroup()?.exchangeValue ?? 0);
+  cardLabel(c: GroupCard): string {
+    const name = c.cardName?.trim() || '';
+    const no = c.cardNo?.trim() || '';
+    if (name && no) return `${name} #${no}`;
+    return name || no || '—';
+  }
+
+  async onGroupChange(groupId: string) {
+    this.groupCardId = '';
+    await this.data.refreshGroupCards(groupId);
   }
 
   async assign() {
     this.error.set('');
     this.success.set(0);
-    const group = this.selectedGroup();
-    if (!this.memberId || !group) {
+    if (!this.memberId || !this.groupId || !this.groupCardId) {
       this.error.set('aitems.errRequired');
       return;
     }
-    const created = await this.data.assignItems(
+    const created = await this.data.assignFromCatalog(
       this.memberId,
-      {
-        name: group.name,
-        photo: this.cardPhoto() || group.photo,
-        exchangeValue: Number(this.exchangeValue()) || 0,
-        cardName: this.cardName,
-        cardNo: this.cardNo,
-      },
+      this.groupCardId,
       Number(this.quantity) || 1
     );
     this.success.set(created.length);
-    this.groupId = '';
-    this.cardName = '';
-    this.cardNo = '';
-    this.cardPhoto.set('');
-    this.exchangeValue.set(0);
+    this.groupCardId = '';
     this.quantity = 1;
   }
 }

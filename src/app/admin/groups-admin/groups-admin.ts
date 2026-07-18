@@ -1,8 +1,8 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
-import { CloudinaryService } from '../../services/cloudinary.service';
-import { Group } from '../../models/models';
+import { CloudinaryService, UploadedImage } from '../../services/cloudinary.service';
+import { Group, GroupCard } from '../../models/models';
 import { TranslatePipe } from '../../services/translate.pipe';
 
 @Component({
@@ -11,95 +11,220 @@ import { TranslatePipe } from '../../services/translate.pipe';
   template: `
     <h2 class="mb">🎴 {{ 'groups.title' | t }}</h2>
 
-    <div class="grid">
-      <div class="card">
-        <div class="card-title">{{ (editingId() ? 'groups.edit' : 'groups.add') | t }}</div>
-
-        <div class="field">
-          <label>{{ 'groups.code' | t }}</label>
-          <input [(ngModel)]="code" [placeholder]="'groups.codePlaceholder' | t" />
-        </div>
-        <div class="field">
-          <label>{{ 'groups.name' | t }}</label>
-          <input [(ngModel)]="name" [placeholder]="'groups.namePlaceholder' | t" />
-        </div>
-        <div class="field">
-          <label>{{ 'groups.exchange' | t }}</label>
-          <input type="number" [(ngModel)]="exchangeValue" />
-        </div>
-
-        <div class="field">
-          <label>{{ 'groups.photo' | t }}</label>
-          <div class="photo-row">
-            <div class="thumb-lg" [style.background]="isColor(photo) ? photo : null">
-              @if (!isColor(photo) && photo) {
-                <img [src]="photo" alt="preview" />
-              }
-            </div>
-            <div class="photo-inputs">
-              <input [(ngModel)]="photo" [placeholder]="'groups.photoUrl' | t" />
-              <button type="button" class="btn btn-outline btn-sm mt-1" (click)="openPicker()">
-                🖼️ {{ 'groups.pickPhoto' | t }}
-              </button>
-            </div>
+    @if (managingGroup(); as mg) {
+      <div class="cards-view">
+        <div class="cards-head">
+          <button type="button" class="btn btn-outline btn-sm" (click)="closeCards()">
+            ← {{ 'groups.backToGroups' | t }}
+          </button>
+          <div>
+            <div class="card-title">{{ 'groups.cardsTitle' | t }} · {{ mg.name }}（{{ mg.code }}）</div>
+            <p class="hint-text">{{ 'groups.cardsHint' | t }}</p>
           </div>
         </div>
 
-        @if (error()) {
-          <p class="error-text">{{ error() | t }}</p>
-        }
+        <div class="grid">
+          <div class="card">
+            <div class="card-title">{{ (editingCardId() ? 'groups.editCard' : 'groups.addCard') | t }}</div>
 
-        <div class="row">
-          <button class="btn btn-primary" (click)="save()">
-            {{ (editingId() ? 'common.save' : 'groups.add') | t }}
-          </button>
-          @if (editingId()) {
-            <button class="btn btn-outline" (click)="resetForm()">{{ 'common.cancel' | t }}</button>
+            <div class="two-col">
+              <div class="field">
+                <label>{{ 'aitems.cardName' | t }}</label>
+                <input [(ngModel)]="cardName" [placeholder]="'aitems.cardNamePlaceholder' | t" />
+              </div>
+              <div class="field">
+                <label>{{ 'aitems.cardNo' | t }}</label>
+                <input [(ngModel)]="cardNo" [placeholder]="'aitems.cardNoPlaceholder' | t" />
+              </div>
+            </div>
+
+            <div class="field">
+              <label>{{ 'groups.exchange' | t }}</label>
+              <input type="number" min="0" [(ngModel)]="cardExchange" />
+            </div>
+
+            <div class="field">
+              <label>{{ 'aitems.cardPhoto' | t }}</label>
+              <div class="card-pick">
+                <button
+                  type="button"
+                  class="pick-tile def"
+                  [class.active]="cardPhoto() === ''"
+                  [style.background]="isColor(mg.photo) ? mg.photo : null"
+                  (click)="cardPhoto.set('')"
+                >
+                  @if (!isColor(mg.photo) && mg.photo) {
+                    <img [src]="mg.photo" alt="" />
+                  }
+                  <span class="tag">{{ 'aitems.useGroupPhoto' | t }}</span>
+                </button>
+                @for (img of groupImages(); track img.publicId) {
+                  <button
+                    type="button"
+                    class="pick-tile"
+                    [class.active]="cardPhoto() === img.url"
+                    (click)="cardPhoto.set(img.url)"
+                  >
+                    <img [src]="img.url" [alt]="img.name" />
+                  </button>
+                }
+              </div>
+              @if (groupImages().length === 0) {
+                <p class="hint-text">{{ 'aitems.noCardImages' | t }}</p>
+              }
+            </div>
+
+            @if (cardError()) {
+              <p class="error-text">{{ cardError() | t }}</p>
+            }
+
+            <div class="row">
+              <button class="btn btn-primary" (click)="saveCard()">
+                {{ (editingCardId() ? 'common.save' : 'groups.addCard') | t }}
+              </button>
+              @if (editingCardId()) {
+                <button class="btn btn-outline" (click)="resetCardForm()">{{ 'common.cancel' | t }}</button>
+              }
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">{{ 'groups.cardsTitle' | t }}</div>
+            @if (data.groupCards().length === 0) {
+              <div class="empty"><span class="emoji">🃏</span>{{ 'groups.cardsEmpty' | t }}</div>
+            } @else {
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>{{ 'aitems.cardPhoto' | t }}</th>
+                    <th>{{ 'aitems.card' | t }}</th>
+                    <th>{{ 'groups.exchange' | t }}</th>
+                    <th style="width:130px"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (c of data.groupCards(); track c.id) {
+                    <tr>
+                      <td>
+                        <div class="thumb" [style.background]="isColor(c.photo) ? c.photo : null">
+                          @if (!isColor(c.photo) && c.photo) {
+                            <img [src]="c.photo" alt="" />
+                          }
+                        </div>
+                      </td>
+                      <td>
+                        @if (c.cardName || c.cardNo) {
+                          {{ c.cardName }}
+                          <span class="text-muted">{{ c.cardNo ? ' #' + c.cardNo : '' }}</span>
+                        } @else {
+                          <span class="text-muted">—</span>
+                        }
+                      </td>
+                      <td><b class="val">{{ c.exchangeValue }} {{ 'common.yuan' | t }}</b></td>
+                      <td>
+                        <button class="btn btn-outline btn-sm" (click)="editCard(c)">{{ 'common.edit' | t }}</button>
+                        <button class="btn btn-danger btn-sm" (click)="removeCard(c.id)">{{ 'common.delete' | t }}</button>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            }
+          </div>
+        </div>
+      </div>
+    } @else {
+      <div class="grid">
+        <div class="card">
+          <div class="card-title">{{ (editingId() ? 'groups.edit' : 'groups.add') | t }}</div>
+
+          <div class="field">
+            <label>{{ 'groups.code' | t }}</label>
+            <input [(ngModel)]="code" [placeholder]="'groups.codePlaceholder' | t" />
+          </div>
+          <div class="field">
+            <label>{{ 'groups.name' | t }}</label>
+            <input [(ngModel)]="name" [placeholder]="'groups.namePlaceholder' | t" />
+          </div>
+          <div class="field">
+            <label>{{ 'groups.exchange' | t }}</label>
+            <input type="number" [(ngModel)]="exchangeValue" />
+          </div>
+
+          <div class="field">
+            <label>{{ 'groups.photo' | t }}</label>
+            <div class="photo-row">
+              <div class="thumb-lg" [style.background]="isColor(photo) ? photo : null">
+                @if (!isColor(photo) && photo) {
+                  <img [src]="photo" alt="preview" />
+                }
+              </div>
+              <div class="photo-inputs">
+                <input [(ngModel)]="photo" [placeholder]="'groups.photoUrl' | t" />
+                <button type="button" class="btn btn-outline btn-sm mt-1" (click)="openPicker()">
+                  🖼️ {{ 'groups.pickPhoto' | t }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          @if (error()) {
+            <p class="error-text">{{ error() | t }}</p>
+          }
+
+          <div class="row">
+            <button class="btn btn-primary" (click)="save()">
+              {{ (editingId() ? 'common.save' : 'groups.add') | t }}
+            </button>
+            @if (editingId()) {
+              <button class="btn btn-outline" (click)="resetForm()">{{ 'common.cancel' | t }}</button>
+            }
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">{{ 'groups.list' | t }}</div>
+          @if (data.groups().length === 0) {
+            <div class="empty"><span class="emoji">🎴</span>{{ 'groups.empty' | t }}</div>
+          } @else {
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>{{ 'groups.photo' | t }}</th>
+                  <th>{{ 'groups.code' | t }}</th>
+                  <th>{{ 'groups.name' | t }}</th>
+                  <th>{{ 'groups.exchange' | t }}</th>
+                  <th style="width:200px"></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (g of data.groups(); track g.id) {
+                  <tr>
+                    <td>
+                      <div class="thumb" [style.background]="isColor(g.photo) ? g.photo : null">
+                        @if (!isColor(g.photo) && g.photo) {
+                          <img [src]="g.photo" alt="" />
+                        } @else {
+                          {{ g.code }}
+                        }
+                      </div>
+                    </td>
+                    <td><b>{{ g.code }}</b></td>
+                    <td>{{ g.name }}</td>
+                    <td><b class="val">{{ g.exchangeValue }} {{ 'common.yuan' | t }}</b></td>
+                    <td class="actions">
+                      <button class="btn btn-primary btn-sm" (click)="openCards(g)">{{ 'groups.manageCards' | t }}</button>
+                      <button class="btn btn-outline btn-sm" (click)="edit(g)">{{ 'common.edit' | t }}</button>
+                      <button class="btn btn-danger btn-sm" (click)="data.deleteGroup(g.id)">{{ 'common.delete' | t }}</button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
           }
         </div>
       </div>
-
-      <div class="card">
-        <div class="card-title">{{ 'groups.list' | t }}</div>
-        @if (data.groups().length === 0) {
-          <div class="empty"><span class="emoji">🎴</span>{{ 'groups.empty' | t }}</div>
-        } @else {
-          <table class="table">
-            <thead>
-              <tr>
-                <th>{{ 'groups.photo' | t }}</th>
-                <th>{{ 'groups.code' | t }}</th>
-                <th>{{ 'groups.name' | t }}</th>
-                <th>{{ 'groups.exchange' | t }}</th>
-                <th style="width:130px"></th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (g of data.groups(); track g.id) {
-                <tr>
-                  <td>
-                    <div class="thumb" [style.background]="isColor(g.photo) ? g.photo : null">
-                      @if (!isColor(g.photo) && g.photo) {
-                        <img [src]="g.photo" alt="" />
-                      } @else {
-                        {{ g.code }}
-                      }
-                    </div>
-                  </td>
-                  <td><b>{{ g.code }}</b></td>
-                  <td>{{ g.name }}</td>
-                  <td><b class="val">{{ g.exchangeValue }} {{ 'common.yuan' | t }}</b></td>
-                  <td>
-                    <button class="btn btn-outline btn-sm" (click)="edit(g)">{{ 'common.edit' | t }}</button>
-                    <button class="btn btn-danger btn-sm" (click)="data.deleteGroup(g.id)">{{ 'common.delete' | t }}</button>
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        }
-      </div>
-    </div>
+    }
 
     @if (picker()) {
       <div class="modal-backdrop" (click)="picker.set(false)">
@@ -134,6 +259,12 @@ import { TranslatePipe } from '../../services/translate.pipe';
         gap: 20px;
         align-items: start;
       }
+      .cards-head {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        margin-bottom: 16px;
+      }
       .photo-row {
         display: flex;
         gap: 12px;
@@ -164,8 +295,52 @@ import { TranslatePipe } from '../../services/translate.pipe';
       .val {
         color: var(--c-primary);
       }
-      td .btn {
+      td .btn,
+      .actions .btn {
         margin-right: 6px;
+        margin-bottom: 4px;
+      }
+      .two-col {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0 12px;
+      }
+      .card-pick {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+        gap: 8px;
+      }
+      .pick-tile {
+        position: relative;
+        aspect-ratio: 1;
+        border: 2px solid var(--c-border);
+        border-radius: 10px;
+        overflow: hidden;
+        cursor: pointer;
+        padding: 0;
+        background: var(--c-surface-2);
+        transition: border-color 0.12s ease, transform 0.12s ease;
+      }
+      .pick-tile:hover {
+        transform: translateY(-2px);
+      }
+      .pick-tile.active {
+        border-color: var(--c-primary);
+      }
+      .pick-tile img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .pick-tile .tag {
+        position: absolute;
+        inset: auto 0 0 0;
+        font-size: 10px;
+        line-height: 1.3;
+        padding: 2px;
+        background: rgba(0, 0, 0, 0.45);
+        color: #fff;
       }
       .picker {
         max-width: 560px;
@@ -217,6 +392,27 @@ export class GroupsAdmin {
   editingId = signal<string | null>(null);
   error = signal('');
   picker = signal(false);
+
+  managingGroup = signal<Group | null>(null);
+  editingCardId = signal<string | null>(null);
+  cardError = signal('');
+  cardName = '';
+  cardNo = '';
+  cardExchange = 0;
+  cardPhoto = signal('');
+
+  groupImages = computed<UploadedImage[]>(() => {
+    const g = this.managingGroup();
+    if (!g) return [];
+    const keys = [g.code, g.name.trim().split(/\s+/)[0]]
+      .map((k) => k.replace(/[\\/?#%]/g, '').trim())
+      .filter(Boolean);
+    return this.cloud.gallery().filter((img) => {
+      const folder = img.folder || '';
+      if (!folder.includes('groups/')) return false;
+      return keys.some((k) => folder.endsWith(`/${k}`) || folder.endsWith(`groups/${k}`));
+    });
+  });
 
   constructor() {
     void this.data.refreshGroups();
@@ -270,5 +466,67 @@ export class GroupsAdmin {
     this.name = '';
     this.exchangeValue = 0;
     this.photo = '#6366f1';
+  }
+
+  async openCards(g: Group) {
+    this.managingGroup.set(g);
+    this.resetCardForm();
+    this.cardExchange = g.exchangeValue;
+    await this.data.refreshGroupCards(g.id);
+  }
+
+  closeCards() {
+    this.managingGroup.set(null);
+    this.resetCardForm();
+    this.data.groupCards.set([]);
+  }
+
+  editCard(c: GroupCard) {
+    this.editingCardId.set(c.id);
+    this.cardName = c.cardName ?? '';
+    this.cardNo = c.cardNo ?? '';
+    this.cardExchange = c.exchangeValue;
+    const g = this.managingGroup();
+    this.cardPhoto.set(g && c.photo === g.photo ? '' : c.photo);
+  }
+
+  resetCardForm() {
+    const g = this.managingGroup();
+    this.editingCardId.set(null);
+    this.cardError.set('');
+    this.cardName = '';
+    this.cardNo = '';
+    this.cardExchange = g?.exchangeValue ?? 0;
+    this.cardPhoto.set('');
+  }
+
+  async saveCard() {
+    this.cardError.set('');
+    const g = this.managingGroup();
+    if (!g) return;
+    if (!this.cardName.trim() && !this.cardNo.trim()) {
+      this.cardError.set('groups.cardErrRequired');
+      return;
+    }
+    const payload = {
+      cardName: this.cardName.trim(),
+      cardNo: this.cardNo.trim(),
+      photo: this.cardPhoto() || g.photo,
+      exchangeValue: Number(this.cardExchange) || 0,
+    };
+    const id = this.editingCardId();
+    if (id) {
+      await this.data.updateGroupCard(id, g.id, payload);
+    } else {
+      await this.data.addGroupCard(g.id, payload);
+    }
+    this.resetCardForm();
+  }
+
+  async removeCard(id: string) {
+    const g = this.managingGroup();
+    if (!g) return;
+    await this.data.deleteGroupCard(id, g.id);
+    if (this.editingCardId() === id) this.resetCardForm();
   }
 }
