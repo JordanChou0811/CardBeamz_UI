@@ -1,6 +1,7 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { CartLine } from '../../models/models';
 import { AuthService } from '../../services/auth.service';
 import { DataService } from '../../services/data.service';
 import { TranslatePipe } from '../../services/translate.pipe';
@@ -30,31 +31,36 @@ import { TranslatePipe } from '../../services/translate.pipe';
             <tr>
               <th>{{ 'groups.code' | t }}</th>
               <th>{{ 'groups.name' | t }}</th>
-              <th>{{ 'shop.qty' | t }}</th>
+              <th>{{ 'cart.team' | t }} / {{ 'shop.qty' | t }}</th>
               <th>{{ 'shop.unitNow' | t }}</th>
               <th>{{ 'cart.subtotal' | t }}</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
-            @for (line of data.cartLines(); track line.groupId) {
+            @for (line of data.cartLines(); track line.cartItemId || line.teamSlotId || line.groupId) {
               <tr>
                 <td><b>{{ line.groupCode }}</b></td>
                 <td>{{ line.groupName }}</td>
                 <td>
-                  <input
-                    type="number"
-                    class="qty-input"
-                    min="1"
-                    [max]="line.remainingStakes"
-                    [ngModel]="line.quantity"
-                    (change)="onQty(line.groupId, $event)"
-                  />
+                  @if (line.kind === 'team') {
+                    <b>{{ line.teamCode }}</b>
+                    <span class="text-muted"> {{ line.teamName }}</span>
+                  } @else {
+                    <input
+                      type="number"
+                      class="qty-input"
+                      min="1"
+                      [max]="line.remainingStakes ?? 1"
+                      [ngModel]="line.quantity"
+                      (change)="onQty(line.groupId, $event)"
+                    />
+                  }
                 </td>
                 <td>{{ line.unitPrice }}</td>
                 <td>{{ line.subtotal }}</td>
                 <td>
-                  <button type="button" class="btn btn-danger btn-sm" (click)="remove(line.groupId)">
+                  <button type="button" class="btn btn-danger btn-sm" (click)="removeLine(line)">
                     {{ 'cart.remove' | t }}
                   </button>
                 </td>
@@ -176,11 +182,15 @@ export class Cart implements OnInit {
     }
   }
 
-  async remove(groupId: string) {
+  async removeLine(line: CartLine) {
     const memberId = this.auth.currentUser()?.id;
     if (!memberId) return;
     try {
-      await this.data.removeCartItem(memberId, groupId);
+      if (line.kind === 'team' && line.teamSlotId) {
+        await this.data.removeCartTeam(memberId, line.teamSlotId);
+      } else {
+        await this.data.removeCartItem(memberId, line.groupId);
+      }
       this.clampCredit();
     } catch {
       // API 錯誤已由 TelegramService 跳窗

@@ -1,11 +1,15 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { Group, PriceTier } from '../../models/models';
+import { Group, PriceTier, TeamSlot } from '../../models/models';
 import { AuthService } from '../../services/auth.service';
 import { DataService } from '../../services/data.service';
 import { I18nService } from '../../services/i18n.service';
 import { TranslatePipe } from '../../services/translate.pipe';
+
+function isTeamSale(type?: string): boolean {
+  return type === 'bball_team' || type === 'baseball_team';
+}
 
 @Component({
   selector: 'app-shop',
@@ -32,48 +36,88 @@ import { TranslatePipe } from '../../services/translate.pipe';
             <div class="meta">
               <div class="code">{{ g.code }}</div>
               <div class="name">{{ g.name }}</div>
+              <div class="badge badge-info">{{ typeLabel(g.type) | t }}</div>
               <div class="text-muted">
                 {{ 'groups.remaining' | t }}：{{ remaining(g) }} / {{ g.totalStakes ?? 0 }}
               </div>
-              <div class="price-list">
-                <div class="price-row">
-                  <span>{{ 'shop.priceBase' | t }}</span>
-                  <b>{{ g.basePrice ?? 0 }} {{ 'common.yuan' | t }}</b>
-                </div>
-                @for (t of tiersOf(g); track t.minQty) {
-                  <div class="price-row tier">
-                    <span>{{ tierLabel(t.minQty) }}</span>
-                    <b>{{ 'shop.perStake' | t }} {{ t.unitPrice }} {{ 'common.yuan' | t }}</b>
-                  </div>
-                }
-                <div class="price-row now">
-                  <span>{{ 'shop.unitNow' | t }}</span>
-                  <b>{{ unitPrice(g, qtyOf(g.id)) }} {{ 'common.yuan' | t }}</b>
-                </div>
-              </div>
-              <div class="buy-row">
-                <label>
-                  {{ 'shop.qty' | t }}
-                  <input
-                    type="number"
-                    min="1"
-                    [max]="remaining(g)"
-                    [ngModel]="qtyOf(g.id)"
-                    (ngModelChange)="setQty(g.id, $event)"
-                  />
-                </label>
-                <button
-                  type="button"
-                  class="btn btn-primary btn-sm"
-                  [disabled]="remaining(g) < 1 || adding() === g.id"
-                  (click)="add(g)"
-                >
-                  {{ 'shop.addCart' | t }}
+
+              @if (isTeamSale(g.type)) {
+                <p class="hint-text mt-1">{{ 'shop.pickTeamHint' | t }}</p>
+                <button type="button" class="btn btn-primary btn-sm mt-1" (click)="openTeams(g)">
+                  {{ 'shop.pickTeam' | t }}
                 </button>
-              </div>
+              } @else {
+                <div class="price-list">
+                  <div class="price-row">
+                    <span>{{ 'shop.priceBase' | t }}</span>
+                    <b>{{ g.basePrice ?? 0 }} {{ 'common.yuan' | t }}</b>
+                  </div>
+                  @for (t of tiersOf(g); track t.minQty) {
+                    <div class="price-row tier">
+                      <span>{{ tierLabel(t.minQty) }}</span>
+                      <b>{{ 'shop.perStake' | t }} {{ t.unitPrice }} {{ 'common.yuan' | t }}</b>
+                    </div>
+                  }
+                  <div class="price-row now">
+                    <span>{{ 'shop.unitNow' | t }}</span>
+                    <b>{{ unitPrice(g, qtyOf(g.id)) }} {{ 'common.yuan' | t }}</b>
+                  </div>
+                </div>
+                <div class="buy-row">
+                  <label>
+                    {{ 'shop.qty' | t }}
+                    <input
+                      type="number"
+                      min="1"
+                      [max]="remaining(g)"
+                      [ngModel]="qtyOf(g.id)"
+                      (ngModelChange)="setQty(g.id, $event)"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    class="btn btn-primary btn-sm"
+                    [disabled]="remaining(g) < 1 || adding() === g.id"
+                    (click)="addStake(g)"
+                  >
+                    {{ 'shop.addCart' | t }}
+                  </button>
+                </div>
+              }
             </div>
           </div>
         }
+      </div>
+    }
+
+    @if (teamGroup(); as tg) {
+      <div class="modal-backdrop" (click)="closeTeams()">
+        <div class="modal team-modal" (click)="$event.stopPropagation()">
+          <h3>{{ tg.name }} · {{ 'shop.pickTeam' | t }}</h3>
+          <p class="hint-text">{{ 'shop.pickTeamHint' | t }}</p>
+          <div class="team-grid">
+            @for (s of teamSlots(); track s.id) {
+              <button
+                type="button"
+                class="team-cell"
+                [class.sold]="s.status === 'sold'"
+                [disabled]="s.status === 'sold' || adding() === s.id"
+                (click)="s.status === 'available' && addTeam(s)"
+              >
+                <div class="t-code">{{ s.teamCode }}</div>
+                <div class="t-name">{{ s.teamName }}</div>
+                <div class="t-price">{{ s.price }} {{ 'common.yuan' | t }}</div>
+                <div class="t-action">
+                  {{ (s.status === 'sold' ? 'shop.teamSold' : 'shop.buyTeam') | t }}
+                </div>
+              </button>
+            }
+          </div>
+          <div class="modal-actions mt-2">
+            <button type="button" class="btn btn-outline" (click)="closeTeams()">{{ 'common.cancel' | t }}</button>
+            <a routerLink="/member/cart" class="btn btn-primary" (click)="closeTeams()">🛒 {{ 'nav.cart' | t }}</a>
+          </div>
+        </div>
       </div>
     }
   `,
@@ -81,6 +125,12 @@ import { TranslatePipe } from '../../services/translate.pipe';
     `
       .mb {
         margin-bottom: 18px;
+      }
+      .mt-1 {
+        margin-top: 10px;
+      }
+      .mt-2 {
+        margin-top: 12px;
       }
       .shop-grid {
         display: grid;
@@ -98,9 +148,6 @@ import { TranslatePipe } from '../../services/translate.pipe';
         border-radius: var(--radius-sm);
         overflow: hidden;
         background: var(--c-bg);
-        display: flex;
-        align-items: center;
-        justify-content: center;
       }
       .thumb-lg img {
         width: 100%;
@@ -127,8 +174,6 @@ import { TranslatePipe } from '../../services/translate.pipe';
       .price-row {
         display: flex;
         justify-content: space-between;
-        align-items: baseline;
-        gap: 10px;
         font-size: 14px;
       }
       .price-row.tier {
@@ -156,6 +201,57 @@ import { TranslatePipe } from '../../services/translate.pipe';
       .buy-row input {
         width: 88px;
       }
+      .team-modal {
+        max-width: 720px;
+        width: min(720px, 94vw);
+      }
+      .team-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 10px;
+        max-height: 60vh;
+        overflow: auto;
+      }
+      .team-cell {
+        border: 1px solid var(--c-border);
+        border-radius: var(--radius-sm);
+        padding: 12px 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        text-align: left;
+        background: var(--c-surface);
+        color: var(--c-text);
+        cursor: pointer;
+      }
+      .team-cell:hover:not(:disabled) {
+        border-color: var(--c-primary);
+        background: var(--c-primary-light);
+      }
+      .team-cell.sold,
+      .team-cell:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .t-code {
+        font-weight: 800;
+      }
+      .t-name {
+        font-size: 13px;
+        color: var(--c-muted);
+      }
+      .t-price {
+        font-weight: 700;
+        margin: 4px 0;
+      }
+      .t-action {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--c-primary-dark);
+      }
+      .team-cell.sold .t-action {
+        color: var(--c-muted);
+      }
     `,
   ],
 })
@@ -165,10 +261,20 @@ export class Shop implements OnInit {
   private i18n = inject(I18nService);
 
   adding = signal<string | null>(null);
+  teamGroup = signal<Group | null>(null);
+  teamSlots = signal<TeamSlot[]>([]);
   private qtyMap = signal<Record<string, number>>({});
+
+  readonly isTeamSale = isTeamSale;
 
   async ngOnInit() {
     await this.data.refreshListedGroups();
+  }
+
+  typeLabel(type?: string): string {
+    if (type === 'bball_team') return 'groups.type.bball_team';
+    if (type === 'baseball_team') return 'groups.type.baseball_team';
+    return 'groups.type.stake_sale';
   }
 
   isColor(v: string) {
@@ -202,7 +308,18 @@ export class Shop implements OnInit {
     return unitPriceFor(g.basePrice ?? 0, g.priceTiers ?? [], qty);
   }
 
-  async add(g: Group) {
+  async openTeams(g: Group) {
+    this.teamGroup.set(g);
+    await this.data.refreshTeamSlots(g.id);
+    this.teamSlots.set(this.data.teamSlots());
+  }
+
+  closeTeams() {
+    this.teamGroup.set(null);
+    this.teamSlots.set([]);
+  }
+
+  async addStake(g: Group) {
     const memberId = this.auth.currentUser()?.id;
     if (!memberId) return;
     const rem = this.remaining(g);
@@ -213,7 +330,23 @@ export class Shop implements OnInit {
       await this.data.upsertCart(memberId, g.id, qty);
       await this.data.refreshListedGroups();
     } catch {
-      // API 錯誤已由 TelegramService 跳窗
+      // API 錯誤已跳窗
+    } finally {
+      this.adding.set(null);
+    }
+  }
+
+  async addTeam(s: TeamSlot) {
+    const memberId = this.auth.currentUser()?.id;
+    if (!memberId) return;
+    this.adding.set(s.id);
+    try {
+      await this.data.upsertCartTeam(memberId, s.id, true);
+      await this.data.refreshTeamSlots(s.groupId);
+      this.teamSlots.set(this.data.teamSlots());
+      await this.data.refreshListedGroups();
+    } catch {
+      // API 錯誤已跳窗
     } finally {
       this.adding.set(null);
     }

@@ -9,6 +9,7 @@ import {
   PriceTier,
   ShippingInfo,
   SHIPPING_FEE,
+  TeamSlot,
   WarehouseItem,
 } from '../models/models';
 import { environment } from '../../environments/environment';
@@ -55,6 +56,7 @@ export class DataService {
   /** 目前載入的團卡片目錄（依 refreshGroupCards 的 groupId） */
   readonly groupCards = signal<GroupCard[]>([]);
   readonly listedGroups = signal<Group[]>([]);
+  readonly teamSlots = signal<TeamSlot[]>([]);
   readonly cartLines = signal<CartLine[]>([]);
   readonly cartGrandSubtotal = signal(0);
   readonly cartMaxCredit = signal(0);
@@ -518,7 +520,10 @@ export class DataService {
       const cards = load<GroupCard[]>(KEYS.groupCards, []).filter((c) => c.groupId === id);
       const next = this.groups().map((g) => {
         if (g.id !== id) return g;
-        if (cards.length < 1 || (g.totalStakes ?? 0) < 1 || (g.basePrice ?? 0) < 1) {
+        const team = g.type === 'bball_team' || g.type === 'baseball_team';
+        if (team) {
+          // mock：買隊團不必有卡片
+        } else if (cards.length < 1 || (g.totalStakes ?? 0) < 1 || (g.basePrice ?? 0) < 1) {
           throw new Error('cannot list');
         }
         return { ...g, status: 'listed' as const, soldStakes: 0, remainingStakes: g.totalStakes ?? 0 };
@@ -591,6 +596,18 @@ export class DataService {
     this.cartMaxCredit.set(res.data.maxCreditUsable ?? 0);
   }
 
+  async upsertCartTeam(memberId: string, teamSlotId: string, add = true): Promise<void> {
+    if (!environment.useApi) return;
+    const res = await this.api.post<{
+      items: CartLine[];
+      grandSubtotal: number;
+      maxCreditUsable: number;
+    }>('cart', 'upsert-team', { memberId, teamSlotId, add });
+    this.cartLines.set(res.data.items ?? []);
+    this.cartGrandSubtotal.set(res.data.grandSubtotal ?? 0);
+    this.cartMaxCredit.set(res.data.maxCreditUsable ?? 0);
+  }
+
   async removeCartItem(memberId: string, groupId: string): Promise<void> {
     if (!environment.useApi) return;
     const res = await this.api.post<{
@@ -601,6 +618,45 @@ export class DataService {
     this.cartLines.set(res.data.items ?? []);
     this.cartGrandSubtotal.set(res.data.grandSubtotal ?? 0);
     this.cartMaxCredit.set(res.data.maxCreditUsable ?? 0);
+  }
+
+  async removeCartTeam(memberId: string, teamSlotId: string): Promise<void> {
+    if (!environment.useApi) return;
+    const res = await this.api.post<{
+      items: CartLine[];
+      grandSubtotal: number;
+      maxCreditUsable: number;
+    }>('cart', 'remove', { memberId, teamSlotId });
+    this.cartLines.set(res.data.items ?? []);
+    this.cartGrandSubtotal.set(res.data.grandSubtotal ?? 0);
+    this.cartMaxCredit.set(res.data.maxCreditUsable ?? 0);
+  }
+
+  // ========== 買隊槽位 ==========
+  async refreshTeamSlots(groupId: string): Promise<void> {
+    if (!groupId) {
+      this.teamSlots.set([]);
+      return;
+    }
+    if (!environment.useApi) {
+      this.teamSlots.set([]);
+      return;
+    }
+    const res = await this.api.get<{ slots: TeamSlot[] }>('group-team', 'list', { groupId });
+    this.teamSlots.set(res.data.slots ?? []);
+  }
+
+  async updateTeamPrices(
+    groupId: string,
+    prices: { teamCode: string; price: number }[]
+  ): Promise<void> {
+    if (!environment.useApi) return;
+    const res = await this.api.post<{ slots: TeamSlot[] }>('group-team', 'update-prices', {
+      groupId,
+      prices,
+    });
+    this.teamSlots.set(res.data.slots ?? []);
+    await this.refreshGroups();
   }
 
   async checkoutCart(

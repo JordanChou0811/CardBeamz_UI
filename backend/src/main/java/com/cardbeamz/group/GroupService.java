@@ -18,8 +18,11 @@ public class GroupService {
 
   private final GroupRepository groupRepository;
   private final GroupCardRepository groupCardRepository;
+  private final GroupCardService groupCardService;
   private final StakePurchaseRepository stakePurchaseRepository;
   private final CartItemRepository cartItemRepository;
+  private final TeamSlotRepository teamSlotRepository;
+  private final TeamSlotService teamSlotService;
   private final MemberService memberService;
 
   public Map<String, Object> list() {
@@ -44,9 +47,14 @@ public class GroupService {
   }
 
   @Transactional
-  public Map<String, Object> create(String code, String name, String photo) {
+  public Map<String, Object> create(String code, String name, String photo, String type) {
     if (groupRepository.findByCode(code).isPresent()) {
       throw new ApiException("group", "create", "新增團", ReturnCodes.GROUP_CODE_EXISTS, "團代號已存在");
+    }
+    String resolvedType =
+        type == null || type.isBlank() ? GroupEntity.TYPE_STAKE_SALE : type.trim();
+    if (!isKnownType(resolvedType)) {
+      throw new ApiException("group", "create", "新增團", ReturnCodes.SYSTEM_VALIDATION, "不支援的玩法");
     }
     GroupEntity group =
         GroupEntity.builder()
@@ -54,7 +62,7 @@ public class GroupService {
             .code(code)
             .name(name)
             .photo(photo)
-            .type(GroupEntity.TYPE_STAKE_SALE)
+            .type(resolvedType)
             .status(GroupEntity.STATUS_DRAFT)
             .totalStakes(0)
             .basePrice(0)
@@ -64,6 +72,10 @@ public class GroupService {
             .createdAt(Instant.now())
             .build();
     groupRepository.save(group);
+    if (GroupEntity.isTeamSale(resolvedType)) {
+      teamSlotService.ensureSlots(group);
+      groupCardService.ensureTeamCards(group);
+    }
     return Map.of("group", toView(group));
   }
 
@@ -96,21 +108,54 @@ public class GroupService {
         throw new ApiException(
             "group", "update-sale", "銷售設定", ReturnCodes.GROUP_LISTED_LOCKED, "上架中不可改玩法，請先下架");
       }
+      if (GroupEntity.isTeamSale(group.getType())) {
+        // 買隊定價走 group-team/update-prices；補齊舊團缺少的固定卡片
+        groupCardService.ensureTeamCards(group);
+        groupRepository.save(group);
+        return Map.of("group", toView(group));
+      }
       if (totalStakes != null && totalStakes != group.getTotalStakes()) {
         throw new ApiException(
             "group", "update-sale", "銷售設定", ReturnCodes.GROUP_LISTED_LOCKED, "上架中不可改總注數，請先下架");
       }
     } else {
       if (type != null && !type.isBlank()) {
-        group.setType(type.trim());
+        String nextType = type.trim();
+        if (!isKnownType(nextType)) {
+          throw new ApiException("group", "update-sale", "銷售設定", ReturnCodes.SYSTEM_VALIDATION, "不支援的玩法");
+        }
+        if (!nextType.equals(group.getType())) {
+          // 切換玩法：清舊隊槽／買隊卡片，再依新玩法重建
+          boolean prevTeam = GroupEntity.isTeamSale(group.getType());
+          boolean nextTeam = GroupEntity.isTeamSale(nextType);
+          teamSlotRepository.deleteByGroupId(group.getId());
+          if (prevTeam || nextTeam) {
+            groupCardRepository.deleteByGroupId(group.getId());
+          }
+          group.setType(nextType);
+          group.setSoldStakes(0);
+          if (nextTeam) {
+            groupRepository.save(group);
+            teamSlotService.ensureSlots(group);
+            groupCardService.ensureTeamCards(group);
+          } else {
+            group.setTotalStakes(0);
+          }
+        }
       }
-      if (totalStakes != null) {
+      if (GroupEntity.isStakeSale(group.getType()) && totalStakes != null) {
         if (totalStakes < 0) {
           throw new ApiException(
               "group", "update-sale", "銷售設定", ReturnCodes.SYSTEM_VALIDATION, "總注數不可為負");
         }
         group.setTotalStakes(totalStakes);
       }
+    }
+
+    if (GroupEntity.isTeamSale(group.getType())) {
+      groupCardService.ensureTeamCards(group);
+      groupRepository.save(group);
+      return Map.of("group", toView(group));
     }
 
     int newBase = basePrice != null ? basePrice : group.getBasePrice();
@@ -142,25 +187,38 @@ public class GroupService {
     return Map.of("group", toView(group));
   }
 
-  /** 上架：需有卡片、注數與價格 */
+  /** 上架：注數團需卡片／注數／價格；買隊團只需每隊價格 ≥ 1（團拆後才分卡，不必先建卡片目錄） */
   @Transactional
   public Map<String, Object> publish(String id) {
     GroupEntity group = require(id);
     if (GroupEntity.STATUS_LISTED.equals(group.getStatus())) {
       return Map.of("group", toView(group));
     }
-    if (groupCardRepository.countByGroupId(id) < 1) {
-      throw new ApiException("group", "publish", "上架", ReturnCodes.GROUP_CANNOT_LIST, "至少需要一張團卡片");
-    }
-    if (!GroupEntity.TYPE_STAKE_SALE.equals(group.getType())) {
-      throw new ApiException("group", "publish", "上架", ReturnCodes.GROUP_CANNOT_LIST, "尚不支援此玩法上架");
-    }
-    if (group.getTotalStakes() < 1 || group.getBasePrice() < 1) {
-      throw new ApiException("group", "publish", "上架", ReturnCodes.GROUP_CANNOT_LIST, "請設定總注數與一注金額");
-    }
-    if (group.getSoldStakes() != 0) {
-      // 理論上下架時已清零；防守
+    if (GroupEntity.isTeamSale(group.getType())) {
+      teamSlotService.ensureSlots(group);
+      groupCardService.ensureTeamCards(group);
+      List<TeamSlot> slots = teamSlotRepository.findByGroupIdOrderByTeamCodeAsc(id);
+      if (slots.isEmpty()) {
+        throw new ApiException("group", "publish", "上架", ReturnCodes.GROUP_CANNOT_LIST, "尚無球隊槽位");
+      }
+      boolean allPriced = slots.stream().allMatch(s -> s.getPrice() >= 1);
+      if (!allPriced) {
+        throw new ApiException("group", "publish", "上架", ReturnCodes.GROUP_CANNOT_LIST, "請為每一隊設定價格");
+      }
+      group.setTotalStakes(slots.size());
       group.setSoldStakes(0);
+    } else if (GroupEntity.isStakeSale(group.getType())) {
+      if (groupCardRepository.countByGroupId(id) < 1) {
+        throw new ApiException("group", "publish", "上架", ReturnCodes.GROUP_CANNOT_LIST, "至少需要一張團卡片");
+      }
+      if (group.getTotalStakes() < 1 || group.getBasePrice() < 1) {
+        throw new ApiException("group", "publish", "上架", ReturnCodes.GROUP_CANNOT_LIST, "請設定總注數與一注金額");
+      }
+      if (group.getSoldStakes() != 0) {
+        group.setSoldStakes(0);
+      }
+    } else {
+      throw new ApiException("group", "publish", "上架", ReturnCodes.GROUP_CANNOT_LIST, "尚不支援此玩法上架");
     }
     group.setStatus(GroupEntity.STATUS_LISTED);
     groupRepository.save(group);
@@ -177,6 +235,9 @@ public class GroupService {
       return Map.of("group", toView(group));
     }
     refundAndClearPurchases(group);
+    if (GroupEntity.isTeamSale(group.getType())) {
+      teamSlotService.clearSalesAndRefund(id);
+    }
     cartItemRepository.deleteByGroupId(id);
     group.setSoldStakes(0);
     group.setStatus(GroupEntity.STATUS_UNLISTED);
@@ -191,6 +252,10 @@ public class GroupService {
       throw new ApiException("group", "delete", "刪除團", ReturnCodes.GROUP_LISTED_LOCKED, "請先下架再刪除");
     }
     refundAndClearPurchases(group);
+    if (GroupEntity.isTeamSale(group.getType())) {
+      teamSlotService.clearSalesAndRefund(id);
+      teamSlotRepository.deleteByGroupId(id);
+    }
     cartItemRepository.deleteByGroupId(id);
     groupCardRepository.deleteByGroupId(id);
     groupRepository.deleteById(id);
@@ -214,11 +279,19 @@ public class GroupService {
     m.put("status", g.getStatus());
     m.put("totalStakes", g.getTotalStakes());
     m.put("basePrice", g.getBasePrice());
-    m.put("soldStakes", g.getSoldStakes());
-    m.put("remainingStakes", Math.max(0, g.getTotalStakes() - g.getSoldStakes()));
+    int sold = g.getSoldStakes();
+    if (GroupEntity.isTeamSale(g.getType())) {
+      sold = (int) teamSlotRepository.countByGroupIdAndStatus(g.getId(), TeamSlot.STATUS_SOLD);
+    }
+    m.put("soldStakes", sold);
+    m.put("remainingStakes", Math.max(0, g.getTotalStakes() - sold));
     m.put("priceTiers", tiers);
     m.put("createdAt", g.getCreatedAt() == null ? null : g.getCreatedAt().toString());
     return m;
+  }
+
+  private static boolean isKnownType(String type) {
+    return GroupEntity.isStakeSale(type) || GroupEntity.isTeamSale(type);
   }
 
   /** 上架中：任一注數的新單價不可高於舊單價 */

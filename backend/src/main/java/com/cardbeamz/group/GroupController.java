@@ -35,7 +35,7 @@ public class GroupController {
         "create",
         "新增團",
         "已建立",
-        groupService.create(req.getCode(), req.getName(), req.getPhoto()));
+        groupService.create(req.getCode(), req.getName(), req.getPhoto(), req.getType()));
   }
 
   @PostMapping("/update")
@@ -78,6 +78,7 @@ public class GroupController {
     private String code;
     private String name;
     private String photo;
+    private String type;
   }
 
   @Data

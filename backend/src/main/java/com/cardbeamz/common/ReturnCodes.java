@@ -78,6 +78,10 @@ public final class ReturnCodes {
   public static final String CART_CREDIT_INVALID = "4206";
   /** 上架中只准降價，不可漲價 */
   public static final String GROUP_PRICE_INCREASE_FORBIDDEN = "4207";
+  /** 球隊槽位不存在 */
+  public static final String TEAM_NOT_FOUND = "4208";
+  /** 該隊已售出 */
+  public static final String TEAM_SOLD = "4209";
 
   // ----- news 5xxx -----
   /** 消息不存在 */

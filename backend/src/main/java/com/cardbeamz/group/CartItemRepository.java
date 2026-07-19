@@ -9,7 +9,9 @@ import org.springframework.transaction.annotation.Transactional;
 public interface CartItemRepository extends JpaRepository<CartItem, String> {
   List<CartItem> findByMemberIdOrderByUpdatedAtDesc(String memberId);
 
-  Optional<CartItem> findByMemberIdAndGroupId(String memberId, String groupId);
+  Optional<CartItem> findByMemberIdAndGroupIdAndTeamSlotIdIsNull(String memberId, String groupId);
+
+  Optional<CartItem> findByMemberIdAndTeamSlotId(String memberId, String teamSlotId);
 
   @Modifying
   @Transactional
@@ -17,5 +19,13 @@ public interface CartItemRepository extends JpaRepository<CartItem, String> {
 
   @Modifying
   @Transactional
-  void deleteByMemberIdAndGroupId(String memberId, String groupId);
+  void deleteByMemberIdAndGroupIdAndTeamSlotIdIsNull(String memberId, String groupId);
+
+  @Modifying
+  @Transactional
+  void deleteByMemberIdAndTeamSlotId(String memberId, String teamSlotId);
+
+  @Modifying
+  @Transactional
+  void deleteByTeamSlotId(String teamSlotId);
 }

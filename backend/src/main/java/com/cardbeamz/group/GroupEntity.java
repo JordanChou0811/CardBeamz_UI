@@ -20,10 +20,22 @@ import lombok.NoArgsConstructor;
 public class GroupEntity {
 
   public static final String TYPE_STAKE_SALE = "stake_sale";
+  /** 籃球買隊團（NBA 30） */
+  public static final String TYPE_BBALL_TEAM = "bball_team";
+  /** 棒球買隊團（MLB 30） */
+  public static final String TYPE_BASEBALL_TEAM = "baseball_team";
 
   public static final String STATUS_DRAFT = "draft";
   public static final String STATUS_LISTED = "listed";
   public static final String STATUS_UNLISTED = "unlisted";
+
+  public static boolean isTeamSale(String type) {
+    return TYPE_BBALL_TEAM.equals(type) || TYPE_BASEBALL_TEAM.equals(type);
+  }
+
+  public static boolean isStakeSale(String type) {
+    return TYPE_STAKE_SALE.equals(type);
+  }
 
   @Id
   private String id;

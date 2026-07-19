@@ -2,10 +2,14 @@ import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
 import { CloudinaryService, UploadedImage } from '../../services/cloudinary.service';
-import { Group, GroupCard, PriceTier } from '../../models/models';
+import { Group, GroupCard, GroupType, PriceTier, TeamSlot } from '../../models/models';
 import { TranslatePipe } from '../../services/translate.pipe';
 import { AlertService } from '../../services/alert.service';
 import { ConfirmService } from '../../services/confirm.service';
+
+function isTeamSale(type?: string): boolean {
+  return type === 'bball_team' || type === 'baseball_team';
+}
 
 @Component({
   selector: 'app-groups-admin',
@@ -23,22 +27,95 @@ import { ConfirmService } from '../../services/confirm.service';
             <div class="card-title" style="margin-bottom: 4px">
               {{ 'groups.cardsTitle' | t }} · {{ mg.name }}（{{ mg.code }}）
             </div>
-            <p class="hint-text" style="margin: 0">{{ 'groups.cardsHint' | t }}</p>
+            <p class="hint-text" style="margin: 0">
+              {{ (isTeamSale(mg.type) ? 'groups.cardsHintTeam' : 'groups.cardsHint') | t }}
+            </p>
           </div>
         </div>
+
+        @if (isTeamSale(mg.type)) {
+          <div class="card team-price-card">
+            <div class="list-head">
+              <div class="card-title" style="margin: 0">{{ 'groups.teamPrices' | t }}</div>
+              <button
+                type="button"
+                class="btn btn-primary btn-sm"
+                [disabled]="savingTeamPrices()"
+                (click)="saveTeamPrices()"
+              >
+                {{ 'groups.saveTeamPrices' | t }}
+              </button>
+            </div>
+            <p class="hint-text">{{ 'groups.teamPricesCatalogHint' | t }}</p>
+            <div class="team-price-toolbar">
+              <input
+                type="number"
+                min="0"
+                [(ngModel)]="bulkTeamPrice"
+                name="bulkTeamPrice"
+                [placeholder]="'groups.bulkTeamPrice' | t"
+              />
+              <button type="button" class="btn btn-outline btn-sm" (click)="applyBulkTeamPrice()">
+                {{ 'groups.applyBulkTeamPrice' | t }}
+              </button>
+            </div>
+            @if (editTeamSlots().length === 0) {
+              <div class="empty"><span class="emoji">🏀</span>{{ 'groups.teamPricesPending' | t }}</div>
+            } @else {
+              <div class="team-price-tables">
+                @for (col of teamSlotColumns(); track $index) {
+                  <table class="table team-price-table">
+                    <thead>
+                      <tr>
+                        <th class="col-code">{{ 'groups.colTeamCode' | t }}</th>
+                        <th>{{ 'groups.colTeamName' | t }}</th>
+                        <th class="col-price">{{ 'groups.colTeamPrice' | t }}</th>
+                        <th class="col-status"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (s of col; track s.id) {
+                        <tr [class.is-sold]="s.status === 'sold'">
+                          <td class="col-code">{{ s.teamCode }}</td>
+                          <td>{{ s.teamName }}</td>
+                          <td class="col-price">
+                            <input
+                              type="number"
+                              min="0"
+                              [(ngModel)]="s.price"
+                              [name]="'tp_' + s.id"
+                              aria-label="price"
+                            />
+                          </td>
+                          <td class="col-status">
+                            @if (s.status === 'sold') {
+                              <span class="badge badge-warning">{{ 'groups.teamSold' | t }}</span>
+                            }
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                }
+              </div>
+            }
+          </div>
+        }
 
         <div class="card">
           <div class="list-head">
             <div class="card-title" style="margin: 0">{{ 'groups.cardsTitle' | t }}</div>
-            <button
-              type="button"
-              class="btn btn-primary btn-icon"
-              [attr.data-tip]="'groups.addCard' | t"
-              [attr.aria-label]="'groups.addCard' | t"
-              (click)="openAddCard()"
-            >
-              +
-            </button>
+            @if (!isTeamSale(mg.type)) {
+              <button
+                type="button"
+                class="btn btn-primary btn-icon"
+                [attr.data-tip]="'groups.addCard' | t"
+                [attr.aria-label]="'groups.addCard' | t"
+                (click)="openAddCard()"
+              >
+                +
+              </button>
+            }
           </div>
           @if (data.groupCards().length === 0) {
             <div class="empty"><span class="emoji">🃏</span>{{ 'groups.cardsEmpty' | t }}</div>
@@ -81,15 +158,17 @@ import { ConfirmService } from '../../services/confirm.service';
                       >
                         ✏️
                       </button>
-                      <button
-                        type="button"
-                        class="btn btn-danger btn-icon"
-                        [attr.data-tip]="'common.delete' | t"
-                        [attr.aria-label]="'common.delete' | t"
-                        (click)="removeCard(c.id)"
-                      >
-                        🗑️
-                      </button>
+                      @if (!isTeamSale(mg.type)) {
+                        <button
+                          type="button"
+                          class="btn btn-danger btn-icon"
+                          [attr.data-tip]="'common.delete' | t"
+                          [attr.aria-label]="'common.delete' | t"
+                          (click)="removeCard(c.id)"
+                        >
+                          🗑️
+                        </button>
+                      }
                     </td>
                   </tr>
                 }
@@ -224,6 +303,7 @@ import { ConfirmService } from '../../services/confirm.service';
                 [(ngModel)]="cardName"
                 [placeholder]="'aitems.cardNamePlaceholder' | t"
                 autocomplete="off"
+                [readonly]="!!formMg && isTeamSale(formMg.type)"
               />
             </div>
             <div class="field">
@@ -233,6 +313,7 @@ import { ConfirmService } from '../../services/confirm.service';
                 [(ngModel)]="cardNo"
                 [placeholder]="'aitems.cardNoPlaceholder' | t"
                 autocomplete="off"
+                [readonly]="!!formMg && isTeamSale(formMg.type)"
               />
             </div>
           </div>
@@ -312,43 +393,49 @@ import { ConfirmService } from '../../services/confirm.service';
             <p class="hint-text">{{ 'groups.saleHint' | t }}</p>
             <div class="field">
               <label>{{ 'groups.type' | t }}</label>
-              <select [(ngModel)]="saleType" [disabled]="formListed()">
+              <select [(ngModel)]="saleType" [disabled]="formListed()" (ngModelChange)="onSaleTypeChange($event)">
                 <option value="stake_sale">{{ 'groups.type.stake_sale' | t }}</option>
+                <option value="bball_team">{{ 'groups.type.bball_team' | t }}</option>
+                <option value="baseball_team">{{ 'groups.type.baseball_team' | t }}</option>
               </select>
             </div>
-            <div class="form-grid-2">
-              <div class="field">
-                <label>{{ 'groups.totalStakes' | t }}</label>
-                <input type="number" min="0" [(ngModel)]="totalStakes" [disabled]="formListed()" />
-              </div>
-              <div class="field">
-                <label>{{ 'groups.basePrice' | t }}</label>
-                <input type="number" min="0" [(ngModel)]="basePrice" />
-              </div>
-            </div>
-            <div class="field">
-              <label>{{ 'groups.priceTiers' | t }}</label>
-              @for (t of priceTiers; track $index) {
-                <div class="tier-row">
-                  <input
-                    type="number"
-                    min="2"
-                    [(ngModel)]="t.minQty"
-                    [placeholder]="'groups.tierMin' | t"
-                  />
-                  <input
-                    type="number"
-                    min="0"
-                    [(ngModel)]="t.unitPrice"
-                    [placeholder]="'groups.tierPrice' | t"
-                  />
-                  <button type="button" class="btn btn-danger btn-icon" (click)="removeTier($index)">🗑️</button>
+            @if (isTeamType()) {
+              <p class="hint-text">{{ 'groups.teamPricesHint' | t }}</p>
+            } @else {
+              <div class="form-grid-2">
+                <div class="field">
+                  <label>{{ 'groups.totalStakes' | t }}</label>
+                  <input type="number" min="0" [(ngModel)]="totalStakes" [disabled]="formListed()" />
                 </div>
-              }
-              <button type="button" class="btn btn-outline btn-sm" (click)="addTier()">
-                + {{ 'groups.addTier' | t }}
-              </button>
-            </div>
+                <div class="field">
+                  <label>{{ 'groups.basePrice' | t }}</label>
+                  <input type="number" min="0" [(ngModel)]="basePrice" />
+                </div>
+              </div>
+              <div class="field">
+                <label>{{ 'groups.priceTiers' | t }}</label>
+                @for (t of priceTiers; track $index) {
+                  <div class="tier-row">
+                    <input
+                      type="number"
+                      min="2"
+                      [(ngModel)]="t.minQty"
+                      [placeholder]="'groups.tierMin' | t"
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      [(ngModel)]="t.unitPrice"
+                      [placeholder]="'groups.tierPrice' | t"
+                    />
+                    <button type="button" class="btn btn-danger btn-icon" (click)="removeTier($index)">🗑️</button>
+                  </div>
+                }
+                <button type="button" class="btn btn-outline btn-sm" (click)="addTier()">
+                  + {{ 'groups.addTier' | t }}
+                </button>
+              </div>
+            }
           </div>
 
           <div class="modal-actions">
@@ -533,6 +620,60 @@ import { ConfirmService } from '../../services/confirm.service';
         gap: 8px;
         margin-bottom: 8px;
       }
+      .team-price-card {
+        margin-bottom: 16px;
+      }
+      .team-price-toolbar {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+      .team-price-toolbar input {
+        width: 140px;
+      }
+      .team-price-tables {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0 28px;
+        align-items: start;
+      }
+      .team-price-table {
+        margin: 0;
+      }
+      .team-price-table th,
+      .team-price-table td {
+        padding: 8px 10px;
+        vertical-align: middle;
+      }
+      .team-price-table .col-code {
+        width: 64px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+      }
+      .team-price-table .col-price {
+        width: 110px;
+      }
+      .team-price-table .col-price input {
+        width: 100%;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .team-price-table .col-status {
+        width: 56px;
+        padding-left: 0;
+      }
+      .team-price-table tr.is-sold td {
+        color: var(--c-muted);
+      }
+      .team-price-table tr.is-sold .col-code {
+        color: var(--c-muted);
+      }
+      @media (max-width: 900px) {
+        .team-price-tables {
+          grid-template-columns: 1fr;
+        }
+      }
       .two-col {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -597,18 +738,23 @@ export class GroupsAdmin {
   protected cloud = inject(CloudinaryService);
   private confirm = inject(ConfirmService);
   private alert = inject(AlertService);
+  readonly isTeamSale = isTeamSale;
 
   code = '';
   name = '';
   photo = '#6366f1';
-  saleType = 'stake_sale';
+  saleType: GroupType = 'stake_sale';
   totalStakes = 0;
   basePrice = 0;
   priceTiers: PriceTier[] = [];
+  editTeamSlots = signal<TeamSlot[]>([]);
+  bulkTeamPrice: number | null = null;
+  savingTeamPrices = signal(false);
   formListed = signal(false);
   /** 開啟編輯時的價格快照（用來判斷上架中是否降價） */
   private originalBasePrice = 0;
   private originalTiersJson = '[]';
+  private originalTeamPricesJson = '[]';
 
   editingId = signal<string | null>(null);
   groupFormOpen = signal(false);
@@ -674,16 +820,83 @@ export class GroupsAdmin {
     this.priceTiers = this.priceTiers.filter((_, i) => i !== index);
   }
 
+  isTeamType(): boolean {
+    return isTeamSale(this.saleType);
+  }
+
+  applyBulkTeamPrice() {
+    const price = Number(this.bulkTeamPrice);
+    if (!Number.isFinite(price) || price < 0) return;
+    this.editTeamSlots.update((slots) => slots.map((s) => ({ ...s, price })));
+  }
+
+  /** 雙欄表格：左半／右半球隊 */
+  teamSlotColumns(): TeamSlot[][] {
+    const slots = this.editTeamSlots();
+    const mid = Math.ceil(slots.length / 2);
+    return [slots.slice(0, mid), slots.slice(mid)];
+  }
+
   private normalizedTiers(): PriceTier[] {
     return this.priceTiers
       .filter((t) => t.minQty >= 2)
       .map((t) => ({ minQty: Number(t.minQty) || 0, unitPrice: Number(t.unitPrice) || 0 }));
   }
 
+  private teamPricesPayload() {
+    return this.editTeamSlots().map((s) => ({
+      teamCode: s.teamCode,
+      price: Number(s.price) || 0,
+    }));
+  }
+
+  private loadTeamSlotsForCatalog(groupId: string, listed: boolean) {
+    return this.data.refreshTeamSlots(groupId).then(() => {
+      const slots = this.data.teamSlots().map((s) => ({ ...s }));
+      this.editTeamSlots.set(slots);
+      this.originalTeamPricesJson = JSON.stringify(
+        slots.map((s) => ({ teamCode: s.teamCode, price: Number(s.price) || 0 }))
+      );
+      this.formListed.set(listed);
+    });
+  }
+
   private priceChangedFromOriginal(): boolean {
     const base = Number(this.basePrice) || 0;
     const tiersJson = JSON.stringify(this.normalizedTiers());
     return base !== this.originalBasePrice || tiersJson !== this.originalTiersJson;
+  }
+
+  private teamPricesChangedFromOriginal(): boolean {
+    return JSON.stringify(this.teamPricesPayload()) !== this.originalTeamPricesJson;
+  }
+
+  async onSaleTypeChange(_type: string) {
+    // 新建時無槽位；編輯時切換玩法會在儲存後重建
+  }
+
+  async saveTeamPrices() {
+    const g = this.managingGroup();
+    if (!g || !isTeamSale(g.type) || this.editTeamSlots().length === 0) return;
+    if (g.status === 'listed' && this.teamPricesChangedFromOriginal()) {
+      const ok = await this.confirm.ask({
+        title: 'confirm.dropPrice',
+        confirmKey: 'common.save',
+        confirmTone: 'primary',
+      });
+      if (!ok) return;
+    }
+    this.savingTeamPrices.set(true);
+    try {
+      await this.data.updateTeamPrices(g.id, this.teamPricesPayload());
+      await this.loadTeamSlotsForCatalog(g.id, g.status === 'listed');
+      const refreshed = this.data.groups().find((x) => x.id === g.id);
+      if (refreshed) this.managingGroup.set(refreshed);
+    } catch {
+      // API 錯誤已由 TelegramService 跳窗
+    } finally {
+      this.savingTeamPrices.set(false);
+    }
   }
 
   async save() {
@@ -695,6 +908,7 @@ export class GroupsAdmin {
       code: this.code.trim(),
       name: this.name.trim(),
       photo: this.photo.trim() || '#6366f1',
+      type: this.saleType,
     };
     const salePayload = {
       type: this.saleType,
@@ -705,7 +919,7 @@ export class GroupsAdmin {
     try {
       const id = this.editingId();
       if (id) {
-        if (this.formListed() && this.priceChangedFromOriginal()) {
+        if (this.formListed() && !this.isTeamType() && this.priceChangedFromOriginal()) {
           const ok = await this.confirm.ask({
             title: 'confirm.dropPrice',
             confirmKey: 'common.save',
@@ -716,7 +930,7 @@ export class GroupsAdmin {
         await this.data.updateGroup(id, payload);
         await this.data.updateGroupSale(
           id,
-          this.formListed()
+          this.formListed() && !this.isTeamType()
             ? { basePrice: salePayload.basePrice, priceTiers: salePayload.priceTiers }
             : salePayload
         );
@@ -733,12 +947,12 @@ export class GroupsAdmin {
     }
   }
 
-  edit(g: Group) {
+  async edit(g: Group) {
     this.editingId.set(g.id);
     this.code = g.code;
     this.name = g.name;
     this.photo = g.photo;
-    this.saleType = g.type || 'stake_sale';
+    this.saleType = (g.type as GroupType) || 'stake_sale';
     this.totalStakes = g.totalStakes ?? 0;
     this.basePrice = g.basePrice ?? 0;
     this.priceTiers = (g.priceTiers ?? []).map((t) => ({ ...t }));
@@ -794,7 +1008,13 @@ export class GroupsAdmin {
   async openCards(g: Group) {
     this.managingGroup.set(g);
     this.resetCardForm();
+    this.bulkTeamPrice = null;
+    this.editTeamSlots.set([]);
+    this.originalTeamPricesJson = '[]';
     await this.data.refreshGroupCards(g.id);
+    if (isTeamSale(g.type)) {
+      await this.loadTeamSlotsForCatalog(g.id, g.status === 'listed');
+    }
   }
 
   closeCards() {
@@ -802,6 +1022,9 @@ export class GroupsAdmin {
     this.closeCardForm();
     this.closeCardPhotoPicker();
     this.data.groupCards.set([]);
+    this.editTeamSlots.set([]);
+    this.bulkTeamPrice = null;
+    this.originalTeamPricesJson = '[]';
   }
 
   openAddCard() {

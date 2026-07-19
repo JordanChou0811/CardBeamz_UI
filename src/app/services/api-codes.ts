@@ -71,6 +71,10 @@ export const ReturnCodes = {
   CART_CREDIT_INVALID: '4206',
   /** 上架中只准降價 */
   GROUP_PRICE_INCREASE_FORBIDDEN: '4207',
+  /** 球隊槽位不存在 */
+  TEAM_NOT_FOUND: '4208',
+  /** 該隊已售出 */
+  TEAM_SOLD: '4209',
 
   // ----- news 5xxx -----
   /** 消息不存在 */
@@ -123,6 +127,8 @@ export const RETURN_CODE_I18N: Record<string, string> = {
   [ReturnCodes.CART_EMPTY]: 'api.err.4205',
   [ReturnCodes.CART_CREDIT_INVALID]: 'api.err.4206',
   [ReturnCodes.GROUP_PRICE_INCREASE_FORBIDDEN]: 'api.err.4207',
+  [ReturnCodes.TEAM_NOT_FOUND]: 'api.err.4208',
+  [ReturnCodes.TEAM_SOLD]: 'api.err.4209',
   // news
   [ReturnCodes.NEWS_NOT_FOUND]: 'api.err.5001',
   // system

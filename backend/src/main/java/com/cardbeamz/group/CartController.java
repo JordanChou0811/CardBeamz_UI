@@ -29,11 +29,29 @@ public class CartController {
         "cart",
         "upsert",
         "更新購物車",
-        cartService.upsert(req.getMemberId(), req.getGroupId(), req.getQuantity() == null ? 1 : req.getQuantity()));
+        cartService.upsert(
+            req.getMemberId(), req.getGroupId(), req.getQuantity() == null ? 1 : req.getQuantity()));
+  }
+
+  @PostMapping("/upsert-team")
+  public ApiResponse<Map<String, Object>> upsertTeam(@RequestBody UpsertTeamRequest req) {
+    boolean add = req.getAdd() == null || Boolean.TRUE.equals(req.getAdd());
+    return ApiResponse.ok(
+        "cart",
+        "upsert-team",
+        "更新買隊購物車",
+        cartService.upsertTeam(req.getMemberId(), req.getTeamSlotId(), add));
   }
 
   @PostMapping("/remove")
   public ApiResponse<Map<String, Object>> remove(@RequestBody RemoveRequest req) {
+    if (req.getTeamSlotId() != null && !req.getTeamSlotId().isBlank()) {
+      return ApiResponse.ok(
+          "cart",
+          "remove",
+          "移除購物車項目",
+          cartService.removeTeam(req.getMemberId(), req.getTeamSlotId()));
+    }
     return ApiResponse.ok(
         "cart", "remove", "移除購物車項目", cartService.remove(req.getMemberId(), req.getGroupId()));
   }
@@ -45,7 +63,8 @@ public class CartController {
         "checkout",
         "結帳",
         "已成立認購",
-        cartService.checkout(req.getMemberId(), req.getCreditToUse() == null ? 0 : req.getCreditToUse()));
+        cartService.checkout(
+            req.getMemberId(), req.getCreditToUse() == null ? 0 : req.getCreditToUse()));
   }
 
   @Data
@@ -56,9 +75,17 @@ public class CartController {
   }
 
   @Data
+  public static class UpsertTeamRequest {
+    private String memberId;
+    private String teamSlotId;
+    private Boolean add;
+  }
+
+  @Data
   public static class RemoveRequest {
     private String memberId;
     private String groupId;
+    private String teamSlotId;
   }
 
   @Data

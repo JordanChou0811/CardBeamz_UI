@@ -68,8 +68,21 @@ export interface Order {
   shippedAt?: string;
 }
 
-/** 玩法類型；目前實作 stake_sale（注數認購） */
-export type GroupType = 'stake_sale' | string;
+/** 玩法：注數認購／籃球買隊／棒球買隊 */
+export type GroupType = 'stake_sale' | 'bball_team' | 'baseball_team' | string;
+
+export type TeamSlotStatus = 'available' | 'sold';
+
+export interface TeamSlot {
+  id: string;
+  groupId: string;
+  teamCode: string;
+  teamName: string;
+  price: number;
+  status: TeamSlotStatus;
+  buyerMemberId?: string | null;
+  paidAmount?: number;
+}
 
 export type GroupStatus = 'draft' | 'listed' | 'unlisted';
 
@@ -99,16 +112,21 @@ export interface Group {
 
 export interface CartLine {
   cartItemId?: string;
+  kind?: 'stake' | 'team';
   groupId: string;
   groupCode: string;
   groupName: string;
   groupPhoto: string;
+  groupType?: GroupType;
   quantity: number;
   unitPrice: number;
-  basePrice: number;
+  basePrice?: number;
   subtotal: number;
-  remainingStakes: number;
+  remainingStakes?: number;
   priceTiers?: PriceTier[];
+  teamSlotId?: string;
+  teamCode?: string;
+  teamName?: string;
 }
 
 /** 團的卡片目錄（尚未分派給會員） */

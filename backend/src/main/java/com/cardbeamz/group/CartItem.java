@@ -27,9 +27,17 @@ public class CartItem {
   @Column(nullable = false)
   private String groupId;
 
+  /** 注數認購用；買隊固定 1 */
   @Column(nullable = false)
   private int quantity;
 
+  /** 買隊槽位；注數認購為 null */
+  private String teamSlotId;
+
   @Column(nullable = false)
   private Instant updatedAt;
+
+  public boolean isTeamLine() {
+    return teamSlotId != null && !teamSlotId.isBlank();
+  }
 }

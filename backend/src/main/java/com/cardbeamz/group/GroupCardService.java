@@ -54,6 +54,35 @@ public class GroupCardService {
     return Map.of("card", card);
   }
 
+  /**
+   * 買隊團固定名冊：依 NBA／MLB 自動建立 30 張團卡片（卡號＝隊碼、卡名＝中文隊名）。
+   * 已存在同卡號則略過；圖可於團拆後再上傳覆蓋。
+   */
+  @Transactional
+  public void ensureTeamCards(GroupEntity group) {
+    if (!GroupEntity.isTeamSale(group.getType())) return;
+    List<TeamCatalog.TeamDef> defs = TeamCatalog.forGroupType(group.getType());
+    if (defs.isEmpty()) return;
+    String placeholder =
+        group.getPhoto() == null || group.getPhoto().isBlank() ? "#64748b" : group.getPhoto();
+    Instant now = Instant.now();
+    for (TeamCatalog.TeamDef d : defs) {
+      if (cardRepository.findByGroupIdAndCardNo(group.getId(), d.code()).isPresent()) {
+        continue;
+      }
+      cardRepository.save(
+          GroupCard.builder()
+              .id(IdGenerator.next("GCARD"))
+              .groupId(group.getId())
+              .cardName(d.nameZh())
+              .cardNo(d.code())
+              .photo(placeholder)
+              .exchangeValue(0)
+              .createdAt(now)
+              .build());
+    }
+  }
+
   @Transactional
   public Map<String, Object> update(
       String id, String cardName, String cardNo, String photo, Integer exchangeValue) {
