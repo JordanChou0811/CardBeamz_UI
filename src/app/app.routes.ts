@@ -14,7 +14,15 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./layouts/member-layout/member-layout').then((m) => m.MemberLayout),
     children: [
-      { path: '', pathMatch: 'full', redirectTo: 'warehouse' },
+      { path: '', pathMatch: 'full', redirectTo: 'shop' },
+      {
+        path: 'shop',
+        loadComponent: () => import('./member/shop/shop').then((m) => m.Shop),
+      },
+      {
+        path: 'cart',
+        loadComponent: () => import('./member/cart/cart').then((m) => m.Cart),
+      },
       {
         path: 'warehouse',
         loadComponent: () => import('./member/warehouse/warehouse').then((m) => m.Warehouse),

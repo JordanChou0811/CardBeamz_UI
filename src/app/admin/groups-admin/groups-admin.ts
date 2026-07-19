@@ -2,7 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
 import { CloudinaryService, UploadedImage } from '../../services/cloudinary.service';
-import { Group, GroupCard } from '../../models/models';
+import { Group, GroupCard, PriceTier } from '../../models/models';
 import { TranslatePipe } from '../../services/translate.pipe';
 import { apiErrorI18nKey } from '../../services/telegram.service';
 import { ConfirmService } from '../../services/confirm.service';
@@ -12,6 +12,10 @@ import { ConfirmService } from '../../services/confirm.service';
   imports: [FormsModule, TranslatePipe],
   template: `
     <h2 class="mb">🎴 {{ 'groups.title' | t }}</h2>
+
+    @if (actionError()) {
+      <p class="error-text mb">{{ actionError() | t }}</p>
+    }
 
     @if (managingGroup(); as mg) {
       <div class="cards-view">
@@ -121,7 +125,9 @@ import { ConfirmService } from '../../services/confirm.service';
                 <th>{{ 'groups.photo' | t }}</th>
                 <th>{{ 'groups.code' | t }}</th>
                 <th>{{ 'groups.name' | t }}</th>
-                <th style="width:120px"></th>
+                <th>{{ 'groups.status' | t }}</th>
+                <th>{{ 'groups.remaining' | t }}</th>
+                <th style="width:160px"></th>
               </tr>
             </thead>
             <tbody>
@@ -138,6 +144,19 @@ import { ConfirmService } from '../../services/confirm.service';
                   </td>
                   <td><b>{{ g.code }}</b></td>
                   <td>{{ g.name }}</td>
+                  <td>
+                    <span
+                      class="badge"
+                      [class.badge-info]="g.status === 'draft'"
+                      [class.badge-success]="g.status === 'listed'"
+                      [class.badge-warning]="g.status === 'unlisted'"
+                      >{{ statusLabel(g.status) | t }}</span
+                    >
+                  </td>
+                  <td class="text-muted">
+                    {{ g.remainingStakes ?? (g.totalStakes ?? 0) - (g.soldStakes ?? 0) }} /
+                    {{ g.totalStakes ?? 0 }}
+                  </td>
                   <td class="actions">
                     <button
                       type="button"
@@ -157,6 +176,27 @@ import { ConfirmService } from '../../services/confirm.service';
                     >
                       ✏️
                     </button>
+                    @if (g.status === 'listed') {
+                      <button
+                        type="button"
+                        class="btn btn-warning btn-icon"
+                        [attr.data-tip]="'groups.unlist' | t"
+                        [attr.aria-label]="'groups.unlist' | t"
+                        (click)="askUnlist(g)"
+                      >
+                        ⬇️
+                      </button>
+                    } @else {
+                      <button
+                        type="button"
+                        class="btn btn-success btn-icon"
+                        [attr.data-tip]="'groups.publish' | t"
+                        [attr.aria-label]="'groups.publish' | t"
+                        (click)="askPublish(g)"
+                      >
+                        ⬆️
+                      </button>
+                    }
                     <button
                       type="button"
                       class="btn btn-danger btn-icon"
@@ -272,6 +312,56 @@ import { ConfirmService } from '../../services/confirm.service';
                   🖼️ {{ 'groups.pickPhoto' | t }}
                 </button>
               </div>
+            </div>
+          </div>
+
+          <div class="sale-block">
+            <div class="card-title" style="margin-bottom: 8px">{{ 'groups.saleSection' | t }}</div>
+            <p class="hint-text">{{ 'groups.saleHint' | t }}</p>
+            <div class="field">
+              <label>{{ 'groups.type' | t }}</label>
+              <select [(ngModel)]="saleType" [disabled]="formListed()">
+                <option value="stake_sale">{{ 'groups.type.stake_sale' | t }}</option>
+              </select>
+            </div>
+            <div class="form-grid-2">
+              <div class="field">
+                <label>{{ 'groups.totalStakes' | t }}</label>
+                <input type="number" min="0" [(ngModel)]="totalStakes" [disabled]="formListed()" />
+              </div>
+              <div class="field">
+                <label>{{ 'groups.basePrice' | t }}</label>
+                <input type="number" min="0" [(ngModel)]="basePrice" [disabled]="formListed()" />
+              </div>
+            </div>
+            <div class="field">
+              <label>{{ 'groups.priceTiers' | t }}</label>
+              @for (t of priceTiers; track $index) {
+                <div class="tier-row">
+                  <input
+                    type="number"
+                    min="2"
+                    [(ngModel)]="t.minQty"
+                    [disabled]="formListed()"
+                    [placeholder]="'groups.tierMin' | t"
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    [(ngModel)]="t.unitPrice"
+                    [disabled]="formListed()"
+                    [placeholder]="'groups.tierPrice' | t"
+                  />
+                  @if (!formListed()) {
+                    <button type="button" class="btn btn-danger btn-icon" (click)="removeTier($index)">🗑️</button>
+                  }
+                </div>
+              }
+              @if (!formListed()) {
+                <button type="button" class="btn btn-outline btn-sm" (click)="addTier()">
+                  + {{ 'groups.addTier' | t }}
+                </button>
+              }
             </div>
           </div>
 
@@ -452,6 +542,17 @@ import { ConfirmService } from '../../services/confirm.service';
         font-size: 22px;
         font-weight: 500;
       }
+      .sale-block {
+        margin-top: 8px;
+        padding-top: 12px;
+        border-top: 1px solid var(--c-border);
+      }
+      .tier-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr auto;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
       .two-col {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -519,10 +620,16 @@ export class GroupsAdmin {
   code = '';
   name = '';
   photo = '#6366f1';
+  saleType = 'stake_sale';
+  totalStakes = 0;
+  basePrice = 0;
+  priceTiers: PriceTier[] = [];
+  formListed = signal(false);
 
   editingId = signal<string | null>(null);
   groupFormOpen = signal(false);
   error = signal('');
+  actionError = signal('');
   picker = signal(false);
 
   managingGroup = signal<Group | null>(null);
@@ -563,6 +670,12 @@ export class GroupsAdmin {
     this.picker.set(false);
   }
 
+  statusLabel(status?: string): string {
+    if (status === 'listed') return 'groups.status.listed';
+    if (status === 'unlisted') return 'groups.status.unlisted';
+    return 'groups.status.draft';
+  }
+
   openAddGroup() {
     this.resetForm();
     this.groupFormOpen.set(true);
@@ -571,6 +684,14 @@ export class GroupsAdmin {
   closeGroupForm() {
     this.groupFormOpen.set(false);
     this.resetForm();
+  }
+
+  addTier() {
+    this.priceTiers = [...this.priceTiers, { minQty: 5, unitPrice: this.basePrice || 0 }];
+  }
+
+  removeTier(index: number) {
+    this.priceTiers = this.priceTiers.filter((_, i) => i !== index);
   }
 
   async save() {
@@ -584,13 +705,38 @@ export class GroupsAdmin {
       name: this.name.trim(),
       photo: this.photo.trim() || '#6366f1',
     };
-    const id = this.editingId();
-    if (id) {
-      await this.data.updateGroup(id, payload);
-    } else {
-      await this.data.addGroup(payload);
+    try {
+      const id = this.editingId();
+      if (id) {
+        await this.data.updateGroup(id, payload);
+        if (!this.formListed()) {
+          await this.data.updateGroupSale(id, {
+            type: this.saleType,
+            totalStakes: Number(this.totalStakes) || 0,
+            basePrice: Number(this.basePrice) || 0,
+            priceTiers: this.priceTiers
+              .filter((t) => t.minQty >= 2)
+              .map((t) => ({ minQty: Number(t.minQty) || 0, unitPrice: Number(t.unitPrice) || 0 })),
+          });
+        }
+      } else {
+        await this.data.addGroup(payload);
+        const created = this.data.groups().find((g) => g.code === payload.code);
+        if (created) {
+          await this.data.updateGroupSale(created.id, {
+            type: this.saleType,
+            totalStakes: Number(this.totalStakes) || 0,
+            basePrice: Number(this.basePrice) || 0,
+            priceTiers: this.priceTiers
+              .filter((t) => t.minQty >= 2)
+              .map((t) => ({ minQty: Number(t.minQty) || 0, unitPrice: Number(t.unitPrice) || 0 })),
+          });
+        }
+      }
+      this.closeGroupForm();
+    } catch (e) {
+      this.error.set(apiErrorI18nKey(e, 'api.err.unknown'));
     }
-    this.closeGroupForm();
   }
 
   edit(g: Group) {
@@ -598,6 +744,11 @@ export class GroupsAdmin {
     this.code = g.code;
     this.name = g.name;
     this.photo = g.photo;
+    this.saleType = g.type || 'stake_sale';
+    this.totalStakes = g.totalStakes ?? 0;
+    this.basePrice = g.basePrice ?? 0;
+    this.priceTiers = (g.priceTiers ?? []).map((t) => ({ ...t }));
+    this.formListed.set(g.status === 'listed');
     this.error.set('');
     this.groupFormOpen.set(true);
   }
@@ -608,6 +759,42 @@ export class GroupsAdmin {
     this.code = '';
     this.name = '';
     this.photo = '#6366f1';
+    this.saleType = 'stake_sale';
+    this.totalStakes = 0;
+    this.basePrice = 0;
+    this.priceTiers = [];
+    this.formListed.set(false);
+  }
+
+  async askPublish(g: Group) {
+    this.actionError.set('');
+    const ok = await this.confirm.ask({
+      title: 'confirm.publishGroup',
+      message: `${g.name}（${g.code}）`,
+      confirmKey: 'groups.publish',
+      confirmTone: 'primary',
+    });
+    if (!ok) return;
+    try {
+      await this.data.publishGroup(g.id);
+    } catch (e) {
+      this.actionError.set(apiErrorI18nKey(e, 'api.err.unknown'));
+    }
+  }
+
+  async askUnlist(g: Group) {
+    this.actionError.set('');
+    const ok = await this.confirm.ask({
+      title: 'confirm.unlistGroup',
+      message: `${g.name}（${g.code}）`,
+      confirmKey: 'groups.unlist',
+    });
+    if (!ok) return;
+    try {
+      await this.data.unlistGroup(g.id);
+    } catch (e) {
+      this.actionError.set(apiErrorI18nKey(e, 'api.err.unknown'));
+    }
   }
 
   async openCards(g: Group) {

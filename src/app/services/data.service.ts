@@ -1,10 +1,12 @@
 import { Injectable, Injector, signal } from '@angular/core';
 import {
+  CartLine,
   Group,
   GroupCard,
   Member,
   NewsItem,
   Order,
+  PriceTier,
   ShippingInfo,
   SHIPPING_FEE,
   WarehouseItem,
@@ -20,6 +22,7 @@ const KEYS = {
   news: 'cbz_news',
   groups: 'cbz_groups',
   groupCards: 'cbz_group_cards',
+  cart: 'cbz_cart',
   seq: 'cbz_member_seq',
 };
 
@@ -51,6 +54,10 @@ export class DataService {
   readonly groups = signal<Group[]>([]);
   /** 目前載入的團卡片目錄（依 refreshGroupCards 的 groupId） */
   readonly groupCards = signal<GroupCard[]>([]);
+  readonly listedGroups = signal<Group[]>([]);
+  readonly cartLines = signal<CartLine[]>([]);
+  readonly cartGrandSubtotal = signal(0);
+  readonly cartMaxCredit = signal(0);
   readonly ready = signal(false);
   readonly loadError = signal('');
 
@@ -468,6 +475,142 @@ export class DataService {
     await this.refreshGroups();
   }
 
+  async updateGroupSale(
+    id: string,
+    sale: {
+      type?: string;
+      totalStakes?: number;
+      basePrice?: number;
+      priceTiers?: PriceTier[];
+    }
+  ): Promise<void> {
+    if (!environment.useApi) {
+      const next = this.groups().map((g) => {
+        if (g.id !== id) return g;
+        if (g.status === 'listed') throw new Error('listed');
+        const totalStakes = sale.totalStakes ?? g.totalStakes ?? 0;
+        const sold = g.soldStakes ?? 0;
+        return {
+          ...g,
+          ...sale,
+          remainingStakes: Math.max(0, totalStakes - sold),
+        };
+      });
+      this.groups.set(next);
+      save(KEYS.groups, next);
+      return;
+    }
+    await this.api.post('group', 'update-sale', { id, ...sale });
+    await this.refreshGroups();
+  }
+
+  async publishGroup(id: string): Promise<void> {
+    if (!environment.useApi) {
+      const cards = load<GroupCard[]>(KEYS.groupCards, []).filter((c) => c.groupId === id);
+      const next = this.groups().map((g) => {
+        if (g.id !== id) return g;
+        if (cards.length < 1 || (g.totalStakes ?? 0) < 1 || (g.basePrice ?? 0) < 1) {
+          throw new Error('cannot list');
+        }
+        return { ...g, status: 'listed' as const, soldStakes: 0, remainingStakes: g.totalStakes ?? 0 };
+      });
+      this.groups.set(next);
+      save(KEYS.groups, next);
+      return;
+    }
+    await this.api.post('group', 'publish', { id });
+    await this.refreshGroups();
+  }
+
+  async unlistGroup(id: string): Promise<void> {
+    if (!environment.useApi) {
+      const next = this.groups().map((g) =>
+        g.id === id
+          ? { ...g, status: 'unlisted' as const, soldStakes: 0, remainingStakes: g.totalStakes ?? 0 }
+          : g
+      );
+      this.groups.set(next);
+      save(KEYS.groups, next);
+      return;
+    }
+    await this.api.post('group', 'unlist', { id });
+    await this.refreshGroups();
+  }
+
+  async refreshListedGroups(): Promise<void> {
+    if (!environment.useApi) {
+      this.listedGroups.set(this.groups().filter((g) => g.status === 'listed'));
+      return;
+    }
+    const res = await this.api.get<{ groups: Group[] }>('group', 'list-listed');
+    this.listedGroups.set(res.data.groups ?? []);
+  }
+
+  // ========== 購物車 ==========
+  async refreshCart(memberId: string): Promise<void> {
+    if (!memberId) {
+      this.cartLines.set([]);
+      this.cartGrandSubtotal.set(0);
+      this.cartMaxCredit.set(0);
+      return;
+    }
+    if (!environment.useApi) {
+      this.cartLines.set([]);
+      this.cartGrandSubtotal.set(0);
+      this.cartMaxCredit.set(0);
+      return;
+    }
+    const res = await this.api.get<{
+      items: CartLine[];
+      grandSubtotal: number;
+      maxCreditUsable: number;
+    }>('cart', 'list', { memberId });
+    this.cartLines.set(res.data.items ?? []);
+    this.cartGrandSubtotal.set(res.data.grandSubtotal ?? 0);
+    this.cartMaxCredit.set(res.data.maxCreditUsable ?? 0);
+  }
+
+  async upsertCart(memberId: string, groupId: string, quantity: number): Promise<void> {
+    if (!environment.useApi) return;
+    const res = await this.api.post<{
+      items: CartLine[];
+      grandSubtotal: number;
+      maxCreditUsable: number;
+    }>('cart', 'upsert', { memberId, groupId, quantity });
+    this.cartLines.set(res.data.items ?? []);
+    this.cartGrandSubtotal.set(res.data.grandSubtotal ?? 0);
+    this.cartMaxCredit.set(res.data.maxCreditUsable ?? 0);
+  }
+
+  async removeCartItem(memberId: string, groupId: string): Promise<void> {
+    if (!environment.useApi) return;
+    const res = await this.api.post<{
+      items: CartLine[];
+      grandSubtotal: number;
+      maxCreditUsable: number;
+    }>('cart', 'remove', { memberId, groupId });
+    this.cartLines.set(res.data.items ?? []);
+    this.cartGrandSubtotal.set(res.data.grandSubtotal ?? 0);
+    this.cartMaxCredit.set(res.data.maxCreditUsable ?? 0);
+  }
+
+  async checkoutCart(
+    memberId: string,
+    creditToUse: number
+  ): Promise<{ grandSubtotal: number; creditUsed: number; cashDue: number }> {
+    const res = await this.api.post<{
+      grandSubtotal: number;
+      creditUsed: number;
+      cashDue: number;
+    }>('cart', 'checkout', { memberId, creditToUse });
+    this.cartLines.set([]);
+    this.cartGrandSubtotal.set(0);
+    this.cartMaxCredit.set(0);
+    await this.auth().refreshMe(memberId);
+    await this.refreshListedGroups();
+    return res.data;
+  }
+
   // ========== 團卡片目錄 ==========
   async refreshGroupCards(groupId: string): Promise<void> {
     if (!groupId) {
@@ -687,6 +830,13 @@ export class DataService {
       code: `CBZ${(idx + 1).toString().padStart(2, '0')}`,
       name: `CBZ${(idx + 1).toString().padStart(2, '0')} 團`,
       photo: palette[idx % palette.length],
+      type: 'stake_sale',
+      status: 'draft',
+      totalStakes: 0,
+      basePrice: 0,
+      soldStakes: 0,
+      remainingStakes: 0,
+      priceTiers: [],
       createdAt: new Date().toISOString(),
     }));
     save(KEYS.groups, groups);

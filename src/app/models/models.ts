@@ -68,6 +68,17 @@ export interface Order {
   shippedAt?: string;
 }
 
+/** 玩法類型；目前實作 stake_sale（注數認購） */
+export type GroupType = 'stake_sale' | string;
+
+export type GroupStatus = 'draft' | 'listed' | 'unlisted';
+
+/** 滿 minQty 注以上，每注 unitPrice 元 */
+export interface PriceTier {
+  minQty: number;
+  unitPrice: number;
+}
+
 export interface Group {
   id: string;
   /** 團代號，例如 CBZ01 */
@@ -76,7 +87,28 @@ export interface Group {
   name: string;
   /** 分團照（圖片網址，可為 Cloudinary URL 或色碼） */
   photo: string;
+  type?: GroupType;
+  status?: GroupStatus;
+  totalStakes?: number;
+  basePrice?: number;
+  soldStakes?: number;
+  remainingStakes?: number;
+  priceTiers?: PriceTier[];
   createdAt: string;
+}
+
+export interface CartLine {
+  cartItemId?: string;
+  groupId: string;
+  groupCode: string;
+  groupName: string;
+  groupPhoto: string;
+  quantity: number;
+  unitPrice: number;
+  basePrice: number;
+  subtotal: number;
+  remainingStakes: number;
+  priceTiers?: PriceTier[];
 }
 
 /** 團的卡片目錄（尚未分派給會員） */

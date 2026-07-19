@@ -8,6 +8,8 @@ import org.springframework.transaction.annotation.Transactional;
 public interface GroupCardRepository extends JpaRepository<GroupCard, String> {
   List<GroupCard> findByGroupIdOrderByCreatedAtDesc(String groupId);
 
+  long countByGroupId(String groupId);
+
   @Modifying
   @Transactional
   void deleteByGroupId(String groupId);

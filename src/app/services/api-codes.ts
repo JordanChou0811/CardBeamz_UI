@@ -57,6 +57,18 @@ export const ReturnCodes = {
   GROUP_NOT_FOUND: '4002',
   /** 團卡片目錄項目不存在 */
   GROUP_CARD_NOT_FOUND: '4101',
+  /** 上架中不可修改銷售設定 */
+  GROUP_LISTED_LOCKED: '4201',
+  /** 上架條件不符 */
+  GROUP_CANNOT_LIST: '4202',
+  /** 團未上架 */
+  GROUP_NOT_LISTED: '4203',
+  /** 剩餘注數不足 */
+  GROUP_STAKES_INSUFFICIENT: '4204',
+  /** 購物車是空的 */
+  CART_EMPTY: '4205',
+  /** 團拆金折抵不合法 */
+  CART_CREDIT_INVALID: '4206',
 
   // ----- news 5xxx -----
   /** 消息不存在 */
@@ -102,6 +114,12 @@ export const RETURN_CODE_I18N: Record<string, string> = {
   [ReturnCodes.GROUP_CODE_EXISTS]: 'api.err.4001',
   [ReturnCodes.GROUP_NOT_FOUND]: 'api.err.4002',
   [ReturnCodes.GROUP_CARD_NOT_FOUND]: 'api.err.4101',
+  [ReturnCodes.GROUP_LISTED_LOCKED]: 'api.err.4201',
+  [ReturnCodes.GROUP_CANNOT_LIST]: 'api.err.4202',
+  [ReturnCodes.GROUP_NOT_LISTED]: 'api.err.4203',
+  [ReturnCodes.GROUP_STAKES_INSUFFICIENT]: 'api.err.4204',
+  [ReturnCodes.CART_EMPTY]: 'api.err.4205',
+  [ReturnCodes.CART_CREDIT_INVALID]: 'api.err.4206',
   // news
   [ReturnCodes.NEWS_NOT_FOUND]: 'api.err.5001',
   // system

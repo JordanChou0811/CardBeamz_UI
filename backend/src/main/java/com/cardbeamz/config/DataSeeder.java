@@ -75,6 +75,12 @@ public class DataSeeder implements CommandLineRunner {
               .code(code)
               .name(code + " 團")
               .photo(palette[i])
+              .type(GroupEntity.TYPE_STAKE_SALE)
+              .status(GroupEntity.STATUS_DRAFT)
+              .totalStakes(0)
+              .basePrice(0)
+              .soldStakes(0)
+              .priceTiersJson("[]")
               .exchangeValue(0)
               .createdAt(now)
               .build());

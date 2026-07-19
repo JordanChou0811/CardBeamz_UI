@@ -1,6 +1,7 @@
 package com.cardbeamz.group;
 
 import com.cardbeamz.common.ApiResponse;
+import java.util.List;
 import java.util.Map;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,11 @@ public class GroupController {
     return ApiResponse.ok("group", "list", "團拆列表", groupService.list());
   }
 
+  @GetMapping("/list-listed")
+  public ApiResponse<Map<String, Object>> listListed() {
+    return ApiResponse.ok("group", "list-listed", "上架中的團", groupService.listListed());
+  }
+
   @PostMapping("/create")
   public ApiResponse<Map<String, Object>> create(@RequestBody GroupRequest req) {
     return ApiResponse.ok(
@@ -41,6 +47,26 @@ public class GroupController {
         groupService.update(req.getId(), req.getCode(), req.getName(), req.getPhoto()));
   }
 
+  @PostMapping("/update-sale")
+  public ApiResponse<Map<String, Object>> updateSale(@RequestBody SaleRequest req) {
+    return ApiResponse.ok(
+        "group",
+        "update-sale",
+        "修改銷售設定",
+        groupService.updateSale(
+            req.getId(), req.getType(), req.getTotalStakes(), req.getBasePrice(), req.getPriceTiers()));
+  }
+
+  @PostMapping("/publish")
+  public ApiResponse<Map<String, Object>> publish(@RequestBody IdRequest req) {
+    return ApiResponse.ok("group", "publish", "上架", groupService.publish(req.getId()));
+  }
+
+  @PostMapping("/unlist")
+  public ApiResponse<Map<String, Object>> unlist(@RequestBody IdRequest req) {
+    return ApiResponse.ok("group", "unlist", "下架", groupService.unlist(req.getId()));
+  }
+
   @PostMapping("/delete")
   public ApiResponse<Map<String, Object>> delete(@RequestBody IdRequest req) {
     return ApiResponse.ok("group", "delete", "刪除團", groupService.delete(req.getId()));
@@ -52,6 +78,15 @@ public class GroupController {
     private String code;
     private String name;
     private String photo;
+  }
+
+  @Data
+  public static class SaleRequest {
+    private String id;
+    private String type;
+    private Integer totalStakes;
+    private Integer basePrice;
+    private List<PriceTier> priceTiers;
   }
 
   @Data

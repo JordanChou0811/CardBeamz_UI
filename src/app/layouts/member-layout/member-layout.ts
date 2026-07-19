@@ -234,6 +234,8 @@ export class MemberLayout {
   open = signal(false);
 
   links = [
+    { path: '/member/shop', label: 'nav.shop', icon: '🛒' },
+    { path: '/member/cart', label: 'nav.cart', icon: '🧺' },
     { path: '/member/warehouse', label: 'nav.warehouse', icon: '📦' },
     { path: '/member/orders', label: 'nav.orders', icon: '🚚' },
     { path: '/member/recycled', label: 'nav.recycled', icon: '♻️' },
