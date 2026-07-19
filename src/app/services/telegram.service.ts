@@ -1,5 +1,6 @@
-import { Injectable } from '@angular/core';
+import { inject, Injectable, Injector } from '@angular/core';
 import { environment } from '../../environments/environment';
+import { AlertService } from './alert.service';
 import { i18nKeyForReturnCode, ReturnCodes } from './api-codes';
 
 /**
@@ -49,6 +50,7 @@ export function apiErrorI18nKey(e: unknown, fallback = 'api.err.unknown'): strin
 export class TelegramService {
   readonly useApi = environment.useApi;
   private base = environment.apiBaseUrl;
+  private injector = inject(Injector);
 
   async get<TData = unknown>(
     apid: string,
@@ -99,22 +101,44 @@ export class TelegramService {
     try {
       res = await fetch(url, init);
     } catch {
-      throw new ApiError(
+      const err = new ApiError(
         ReturnCodes.SYSTEM_OFFLINE, // 9998 無法連線
         this.useApi
           ? '無法連線後端，請確認已啟動 http://localhost:8080'
           : `無法讀取模擬電文：${url}`
       );
+      this.notifyError(err);
+      throw err;
     }
     let json: ApiResponse<TData>;
     try {
       json = (await res.json()) as ApiResponse<TData>;
     } catch {
-      throw new ApiError(ReturnCodes.SYSTEM_BAD_RESPONSE, `回應格式錯誤（HTTP ${res.status}）`); // 9997
+      const err = new ApiError(
+        ReturnCodes.SYSTEM_BAD_RESPONSE,
+        `回應格式錯誤（HTTP ${res.status}）`
+      ); // 9997
+      this.notifyError(err);
+      throw err;
     }
     if (!res.ok || json.returnCode !== ReturnCodes.OK) {
-      throw new ApiError(json.returnCode || String(res.status), json.returnMsg || '請求失敗', json);
+      const err = new ApiError(
+        json.returnCode || String(res.status),
+        json.returnMsg || '請求失敗',
+        json
+      );
+      this.notifyError(err);
+      throw err;
     }
     return json;
+  }
+
+  /** 全站錯誤跳窗（lazy inject，避免循環相依） */
+  private notifyError(err: ApiError): void {
+    try {
+      void this.injector.get(AlertService).error(err.i18nKey);
+    } catch {
+      // ignore
+    }
   }
 }

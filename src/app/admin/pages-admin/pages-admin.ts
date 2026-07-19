@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
 import { NewsCategory, NewsItem } from '../../models/models';
 import { TranslatePipe } from '../../services/translate.pipe';
+import { AlertService } from '../../services/alert.service';
 import { ConfirmService } from '../../services/confirm.service';
 
 @Component({
@@ -30,9 +31,6 @@ import { ConfirmService } from '../../services/confirm.service';
           <label>{{ 'apages.content' | t }}</label>
           <textarea rows="5" [(ngModel)]="content" [placeholder]="'apages.contentPlaceholder' | t"></textarea>
         </div>
-        @if (error()) {
-          <p class="error-text">{{ error() | t }}</p>
-        }
         <div class="row">
           <button class="btn btn-primary" (click)="save()">
             {{ (editingId() ? 'apages.saveEdit' : 'apages.add') | t }}
@@ -106,21 +104,20 @@ import { ConfirmService } from '../../services/confirm.service';
 export class PagesAdmin {
   protected data = inject(DataService);
   private confirm = inject(ConfirmService);
+  private alert = inject(AlertService);
 
   category: NewsCategory = 'service';
   title = '';
   content = '';
   editingId = signal<string | null>(null);
-  error = signal('');
 
   constructor() {
     void this.data.refreshNews();
   }
 
   async save() {
-    this.error.set('');
     if (!this.title.trim() || !this.content.trim()) {
-      this.error.set('apages.errRequired');
+      await this.alert.error('apages.errRequired');
       return;
     }
     const id = this.editingId();

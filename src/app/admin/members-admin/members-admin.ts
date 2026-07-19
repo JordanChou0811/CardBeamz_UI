@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
 import { Member } from '../../models/models';
 import { TranslatePipe } from '../../services/translate.pipe';
-import { apiErrorI18nKey } from '../../services/telegram.service';
+import { AlertService } from '../../services/alert.service';
 
 @Component({
   selector: 'app-members-admin',
@@ -93,9 +93,6 @@ import { apiErrorI18nKey } from '../../services/telegram.service';
               <label>{{ 'amembers.creditAmount' | t }}</label>
               <input type="number" [(ngModel)]="form.credit" name="credit" />
             </div>
-            @if (error()) {
-              <p class="error-text">{{ error() | t }}</p>
-            }
           </div>
           <div class="modal-actions">
             <button class="btn btn-outline" type="button" (click)="closeForm()">{{ 'common.cancel' | t }}</button>
@@ -147,7 +144,7 @@ export class MembersAdmin {
 
   formOpen = signal(false);
   mode = signal<'create' | 'edit'>('create');
-  error = signal('');
+  private alert = inject(AlertService);
   form = {
     id: '',
     name: '',
@@ -170,14 +167,12 @@ export class MembersAdmin {
 
   openCreate() {
     this.mode.set('create');
-    this.error.set('');
     this.form = { id: '', name: '', digits: '', password: '', credit: 0 };
     this.formOpen.set(true);
   }
 
   openEdit(m: Member) {
     this.mode.set('edit');
-    this.error.set('');
     this.form = {
       id: m.id,
       name: m.name,
@@ -190,21 +185,19 @@ export class MembersAdmin {
 
   closeForm() {
     this.formOpen.set(false);
-    this.error.set('');
   }
 
   async save() {
-    this.error.set('');
     if (!this.form.name.trim()) {
-      this.error.set('amembers.errName');
+      await this.alert.error('amembers.errName');
       return;
     }
     if (this.form.digits.length !== 8) {
-      this.error.set('amembers.errAccount');
+      await this.alert.error('amembers.errAccount');
       return;
     }
     if (this.mode() === 'create' && !this.form.password.trim()) {
-      this.error.set('amembers.errPassword');
+      await this.alert.error('amembers.errPassword');
       return;
     }
 
@@ -226,9 +219,8 @@ export class MembersAdmin {
         await this.data.adminUpdateMember(this.form.id, patch);
       }
       this.closeForm();
-    } catch (e) {
-      // 依 returnCode 顯示（1003 重複、1006 格式…）
-      this.error.set(apiErrorI18nKey(e, 'amembers.errFail'));
+    } catch {
+      // API 錯誤已由 TelegramService 跳窗
     }
   }
 }

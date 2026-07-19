@@ -1,5 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { AlertService } from '../../services/alert.service';
 import { DataService } from '../../services/data.service';
 import { I18nService } from '../../services/i18n.service';
 import { TranslatePipe } from '../../services/translate.pipe';
@@ -51,10 +52,6 @@ interface SentLog {
           <label>{{ 'notify.content' | t }}</label>
           <textarea rows="4" [(ngModel)]="message" [placeholder]="'notify.contentPlaceholder' | t"></textarea>
         </div>
-
-        @if (error()) {
-          <p class="error-text">{{ error() | t }}</p>
-        }
 
         <button class="btn btn-primary btn-block" (click)="send()">{{ 'notify.send' | t }}</button>
         <p class="hint-text">{{ 'notify.mockHint' | t }}</p>
@@ -118,11 +115,11 @@ interface SentLog {
 export class NotifyAdmin {
   protected data = inject(DataService);
   private i18n = inject(I18nService);
+  private alert = inject(AlertService);
 
   channel = signal<'email' | 'line'>('email');
   target = 'all';
   message = '';
-  error = signal('');
   logs = signal<SentLog[]>([]);
 
   memberCount = computed(() => this.data.members().filter((m) => m.role === 'member').length);
@@ -132,9 +129,8 @@ export class NotifyAdmin {
   }
 
   async send() {
-    this.error.set('');
     if (!this.message.trim()) {
-      this.error.set('notify.errContent');
+      await this.alert.error('notify.errContent');
       return;
     }
     const channel = this.channel();
@@ -167,7 +163,7 @@ export class NotifyAdmin {
       ]);
       this.message = '';
     } catch {
-      this.error.set('notify.errSend');
+      // API 錯誤已由 TelegramService 跳窗
     }
   }
 }

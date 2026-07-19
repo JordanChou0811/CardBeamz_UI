@@ -1,7 +1,8 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { AlertService } from '../../services/alert.service';
 import { TranslatePipe } from '../../services/translate.pipe';
 import { Controls } from '../../shared/controls/controls';
 
@@ -38,10 +39,6 @@ import { Controls } from '../../shared/controls/controls';
               {{ 'login.remember' | t }}
             </label>
           </div>
-
-          @if (error()) {
-            <p class="error-text">{{ error() | t }}</p>
-          }
 
           <button type="submit" class="btn btn-primary btn-block mt-2">{{ 'common.login' | t }}</button>
         </form>
@@ -111,21 +108,20 @@ import { Controls } from '../../shared/controls/controls';
 export class Login {
   private auth = inject(AuthService);
   private router = inject(Router);
+  private alert = inject(AlertService);
 
   account = '';
   password = '';
   remember = false;
-  error = signal('');
 
   async submit() {
-    this.error.set('');
     if (!this.account.trim() || !this.password.trim()) {
-      this.error.set('login.errRequired');
+      await this.alert.error('login.errRequired');
       return;
     }
     const res = await this.auth.login(this.account.trim(), this.password);
     if (!res.ok) {
-      this.error.set(res.message ?? 'login.errFail');
+      if (res.message) await this.alert.error(res.message);
       return;
     }
     this.router.navigate([this.auth.isAdmin() ? '/admin' : '/member']);

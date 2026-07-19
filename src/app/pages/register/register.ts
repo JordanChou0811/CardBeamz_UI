@@ -4,7 +4,7 @@ import { Router, RouterLink } from '@angular/router';
 import { DataService } from '../../services/data.service';
 import { TranslatePipe } from '../../services/translate.pipe';
 import { Controls } from '../../shared/controls/controls';
-import { apiErrorI18nKey } from '../../services/telegram.service';
+import { AlertService } from '../../services/alert.service';
 
 @Component({
   selector: 'app-register',
@@ -62,10 +62,6 @@ import { apiErrorI18nKey } from '../../services/telegram.service';
             <label>{{ 'common.password' | t }}<span class="req">*</span></label>
             <input type="password" [(ngModel)]="password" name="password" [placeholder]="'register.passwordPlaceholder' | t" />
           </div>
-
-          @if (error()) {
-            <p class="error-text">{{ error() | t }}</p>
-          }
 
           <button type="submit" class="btn btn-primary btn-block mt-2">{{ 'register.submit' | t }}</button>
         </form>
@@ -147,6 +143,7 @@ import { apiErrorI18nKey } from '../../services/telegram.service';
 export class Register {
   private data = inject(DataService);
   private router = inject(Router);
+  private alert = inject(AlertService);
 
   name = '';
   digits = '';
@@ -154,7 +151,6 @@ export class Register {
   password = '';
 
   sentCode = signal('');
-  error = signal('');
   success = signal(false);
   memberNo = signal('');
 
@@ -168,38 +164,36 @@ export class Register {
 
   async sendCode() {
     if (this.digits.length !== 8) {
-      this.error.set('register.errPhone');
+      await this.alert.error('register.errPhone');
       return;
     }
-    this.error.set('');
     try {
       const code = await this.data.sendVerifyCode(this.account);
       this.sentCode.set(code || '已發送');
     } catch {
-      this.error.set('register.errSend');
+      // API 錯誤已由 TelegramService 跳窗
     }
   }
 
   async submit() {
-    this.error.set('');
     if (!this.name.trim()) {
-      this.error.set('register.errName');
+      await this.alert.error('register.errName');
       return;
     }
     if (this.digits.length !== 8) {
-      this.error.set('register.errDigits');
+      await this.alert.error('register.errDigits');
       return;
     }
     if (!this.sentCode()) {
-      this.error.set('register.errCodeFirst');
+      await this.alert.error('register.errCodeFirst');
       return;
     }
     if (!this.code.trim()) {
-      this.error.set('register.errCode');
+      await this.alert.error('register.errCode');
       return;
     }
     if (!this.password.trim()) {
-      this.error.set('register.errPwd');
+      await this.alert.error('register.errPwd');
       return;
     }
 
@@ -212,9 +206,8 @@ export class Register {
       });
       this.memberNo.set(member.id);
       this.success.set(true);
-    } catch (e) {
-      // 依 returnCode 顯示錯誤（1002 驗證碼、1003 帳號已存在…）
-      this.error.set(apiErrorI18nKey(e, 'register.errFail'));
+    } catch {
+      // API 錯誤已由 TelegramService 跳窗
     }
   }
 

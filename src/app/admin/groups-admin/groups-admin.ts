@@ -4,7 +4,7 @@ import { DataService } from '../../services/data.service';
 import { CloudinaryService, UploadedImage } from '../../services/cloudinary.service';
 import { Group, GroupCard, PriceTier } from '../../models/models';
 import { TranslatePipe } from '../../services/translate.pipe';
-import { apiErrorI18nKey } from '../../services/telegram.service';
+import { AlertService } from '../../services/alert.service';
 import { ConfirmService } from '../../services/confirm.service';
 
 @Component({
@@ -12,10 +12,6 @@ import { ConfirmService } from '../../services/confirm.service';
   imports: [FormsModule, TranslatePipe],
   template: `
     <h2 class="mb">🎴 {{ 'groups.title' | t }}</h2>
-
-    @if (actionError()) {
-      <p class="error-text mb">{{ actionError() | t }}</p>
-    }
 
     @if (managingGroup(); as mg) {
       <div class="cards-view">
@@ -268,10 +264,6 @@ import { ConfirmService } from '../../services/confirm.service';
             </div>
           </div>
 
-          @if (cardError()) {
-            <p class="error-text">{{ cardError() | t }}</p>
-          }
-
           <div class="modal-actions">
             <button type="button" class="btn btn-outline" (click)="closeCardForm()">{{ 'common.cancel' | t }}</button>
             <button type="button" class="btn btn-primary" (click)="saveCard()">
@@ -365,10 +357,6 @@ import { ConfirmService } from '../../services/confirm.service';
             </div>
           </div>
 
-          @if (error()) {
-            <p class="error-text">{{ error() | t }}</p>
-          }
-
           <div class="modal-actions">
             <button type="button" class="btn btn-outline" (click)="closeGroupForm()">{{ 'common.cancel' | t }}</button>
             <button type="button" class="btn btn-primary" (click)="save()">
@@ -409,8 +397,6 @@ import { ConfirmService } from '../../services/confirm.service';
 
           @if (folderLoading()) {
             <div class="empty"><span class="emoji">⏳</span>{{ 'groups.loadingImages' | t }}</div>
-          } @else if (folderError()) {
-            <p class="error-text">{{ folderError() | t }}</p>
           } @else {
             <div class="pick-grid">
               <button
@@ -616,6 +602,7 @@ export class GroupsAdmin {
   protected data = inject(DataService);
   protected cloud = inject(CloudinaryService);
   private confirm = inject(ConfirmService);
+  private alert = inject(AlertService);
 
   code = '';
   name = '';
@@ -628,15 +615,12 @@ export class GroupsAdmin {
 
   editingId = signal<string | null>(null);
   groupFormOpen = signal(false);
-  error = signal('');
-  actionError = signal('');
   picker = signal(false);
 
   managingGroup = signal<Group | null>(null);
   /** 開啟時帶入目前管理的團，供表單預覽用 */
   cardFormOpen = signal<Group | null>(null);
   editingCardId = signal<string | null>(null);
-  cardError = signal('');
   cardName = '';
   cardNo = '';
   cardExchange = 0;
@@ -647,7 +631,6 @@ export class GroupsAdmin {
   folderImages = signal<UploadedImage[]>([]);
   folderNextCursor = signal<string | undefined>(undefined);
   folderLoading = signal(false);
-  folderError = signal('');
 
   constructor() {
     void this.data.refreshGroups();
@@ -695,9 +678,8 @@ export class GroupsAdmin {
   }
 
   async save() {
-    this.error.set('');
     if (!this.code.trim() || !this.name.trim()) {
-      this.error.set('groups.errRequired');
+      await this.alert.error('groups.errRequired');
       return;
     }
     const payload = {
@@ -734,8 +716,8 @@ export class GroupsAdmin {
         }
       }
       this.closeGroupForm();
-    } catch (e) {
-      this.error.set(apiErrorI18nKey(e, 'api.err.unknown'));
+    } catch {
+      // API 錯誤已由 TelegramService 跳窗
     }
   }
 
@@ -749,13 +731,11 @@ export class GroupsAdmin {
     this.basePrice = g.basePrice ?? 0;
     this.priceTiers = (g.priceTiers ?? []).map((t) => ({ ...t }));
     this.formListed.set(g.status === 'listed');
-    this.error.set('');
     this.groupFormOpen.set(true);
   }
 
   resetForm() {
     this.editingId.set(null);
-    this.error.set('');
     this.code = '';
     this.name = '';
     this.photo = '#6366f1';
@@ -767,7 +747,6 @@ export class GroupsAdmin {
   }
 
   async askPublish(g: Group) {
-    this.actionError.set('');
     const ok = await this.confirm.ask({
       title: 'confirm.publishGroup',
       message: `${g.name}（${g.code}）`,
@@ -777,13 +756,12 @@ export class GroupsAdmin {
     if (!ok) return;
     try {
       await this.data.publishGroup(g.id);
-    } catch (e) {
-      this.actionError.set(apiErrorI18nKey(e, 'api.err.unknown'));
+    } catch {
+      // API 錯誤已由 TelegramService 跳窗
     }
   }
 
   async askUnlist(g: Group) {
-    this.actionError.set('');
     const ok = await this.confirm.ask({
       title: 'confirm.unlistGroup',
       message: `${g.name}（${g.code}）`,
@@ -792,8 +770,8 @@ export class GroupsAdmin {
     if (!ok) return;
     try {
       await this.data.unlistGroup(g.id);
-    } catch (e) {
-      this.actionError.set(apiErrorI18nKey(e, 'api.err.unknown'));
+    } catch {
+      // API 錯誤已由 TelegramService 跳窗
     }
   }
 
@@ -828,14 +806,12 @@ export class GroupsAdmin {
     this.cardPhotoPicker.set(g);
     this.folderImages.set([]);
     this.folderNextCursor.set(undefined);
-    this.folderError.set('');
     await this.fetchFolderImages(g.code);
   }
 
   closeCardPhotoPicker() {
     this.cardPhotoPicker.set(null);
     this.folderLoading.set(false);
-    this.folderError.set('');
   }
 
   chooseCardPhoto(url: string) {
@@ -852,14 +828,13 @@ export class GroupsAdmin {
 
   private async fetchFolderImages(groupCode: string, nextCursor?: string, append = false) {
     this.folderLoading.set(true);
-    this.folderError.set('');
     try {
       const res = await this.cloud.listGroupFolder(groupCode, nextCursor);
       this.folderImages.set(append ? [...this.folderImages(), ...res.images] : res.images);
       this.folderNextCursor.set(res.nextCursor);
-    } catch (e) {
-      this.folderError.set(apiErrorI18nKey(e, 'api.err.9102'));
+    } catch {
       if (!append) this.folderImages.set([]);
+      // API 錯誤已由 TelegramService 跳窗
     } finally {
       this.folderLoading.set(false);
     }
@@ -873,13 +848,11 @@ export class GroupsAdmin {
     this.cardNo = c.cardNo ?? '';
     this.cardExchange = c.exchangeValue;
     this.cardPhoto.set(c.photo === g.photo ? '' : c.photo);
-    this.cardError.set('');
     this.cardFormOpen.set(g);
   }
 
   resetCardForm() {
     this.editingCardId.set(null);
-    this.cardError.set('');
     this.cardName = '';
     this.cardNo = '';
     this.cardExchange = 0;
@@ -887,11 +860,10 @@ export class GroupsAdmin {
   }
 
   async saveCard() {
-    this.cardError.set('');
     const g = this.managingGroup();
     if (!g) return;
     if (!this.cardName.trim() && !this.cardNo.trim()) {
-      this.cardError.set('groups.cardErrRequired');
+      await this.alert.error('groups.cardErrRequired');
       return;
     }
     const payload = {

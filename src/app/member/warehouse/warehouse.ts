@@ -1,6 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { AlertService } from '../../services/alert.service';
 import { AuthService } from '../../services/auth.service';
 import { DataService } from '../../services/data.service';
 import { TranslatePipe } from '../../services/translate.pipe';
@@ -177,10 +178,6 @@ import {
           </div>
         }
 
-        @if (error()) {
-          <p class="error-text">{{ error() | t }}</p>
-        }
-
         <div class="flex-between mt-3">
           <button class="btn btn-outline" (click)="step.set(1)">← {{ 'common.prev' | t }}</button>
           <div class="checkout">
@@ -281,6 +278,7 @@ export class Warehouse {
   private data = inject(DataService);
   private auth = inject(AuthService);
   private router = inject(Router);
+  private alert = inject(AlertService);
 
   private memberId = this.auth.currentUser()!.id;
 
@@ -288,7 +286,6 @@ export class Warehouse {
   selected = signal<Set<string>>(new Set());
   recycleItem = signal<WarehouseItem | null>(null);
   exchangeItem = signal<WarehouseItem | null>(null);
-  error = signal('');
 
   method = signal<ShippingMethod>('cvs');
   cvsBrand = signal<CvsBrand | null>(null);
@@ -325,7 +322,6 @@ export class Warehouse {
     this.method.set(m);
     this.form = { method: m };
     this.cvsBrand.set(null);
-    this.error.set('');
   }
 
   // ---- 回收 ----
@@ -366,23 +362,35 @@ export class Warehouse {
   }
 
   async checkout() {
-    this.error.set('');
     const m = this.method();
     const f = this.form;
     if (m === 'cvs') {
-      if (!this.cvsBrand()) return this.error.set('wh.errCvs');
-      if (!f.name || !f.phone || !f.storeName || !f.storeAddress)
-        return this.error.set('wh.errRequired');
+      if (!this.cvsBrand()) {
+        await this.alert.error('wh.errCvs');
+        return;
+      }
+      if (!f.name || !f.phone || !f.storeName || !f.storeAddress) {
+        await this.alert.error('wh.errRequired');
+        return;
+      }
       f.cvsBrand = this.cvsBrand()!;
     } else if (m === 'mail') {
-      if (!f.name || !f.phone || !f.address) return this.error.set('wh.errRequired');
-    } else {
-      if (!f.lineId || !f.lineName) return this.error.set('wh.errRequired');
+      if (!f.name || !f.phone || !f.address) {
+        await this.alert.error('wh.errRequired');
+        return;
+      }
+    } else if (!f.lineId || !f.lineName) {
+      await this.alert.error('wh.errRequired');
+      return;
     }
 
     const ids = [...this.selected()];
-    await this.data.checkout(this.memberId, ids, { ...f, method: m });
-    this.selected.set(new Set());
-    this.router.navigate(['/member/orders']);
+    try {
+      await this.data.checkout(this.memberId, ids, { ...f, method: m });
+      this.selected.set(new Set());
+      this.router.navigate(['/member/orders']);
+    } catch {
+      // API 錯誤已由 TelegramService 跳窗
+    }
   }
 }

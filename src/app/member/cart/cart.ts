@@ -3,7 +3,6 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { DataService } from '../../services/data.service';
-import { apiErrorI18nKey } from '../../services/telegram.service';
 import { TranslatePipe } from '../../services/translate.pipe';
 
 @Component({
@@ -15,9 +14,6 @@ import { TranslatePipe } from '../../services/translate.pipe';
       <a routerLink="/member/shop" class="btn btn-outline btn-sm">← {{ 'nav.shop' | t }}</a>
     </div>
 
-    @if (error()) {
-      <p class="error-text mb">{{ error() | t }}</p>
-    }
     @if (success()) {
       <p class="success-text mb">{{ 'cart.checkedOut' | t }} — {{ 'cart.cashDue' | t }}：{{ success()!.cashDue }}
         {{ 'common.yuan' | t }}</p>
@@ -134,7 +130,6 @@ export class Cart implements OnInit {
   protected data = inject(DataService);
   private auth = inject(AuthService);
 
-  error = signal('');
   busy = signal(false);
   success = signal<{ cashDue: number } | null>(null);
   creditInput = signal(0);
@@ -172,12 +167,10 @@ export class Cart implements OnInit {
     if (!memberId) return;
     const raw = (ev.target as HTMLInputElement).value;
     const qty = Math.max(1, Math.floor(Number(raw) || 1));
-    this.error.set('');
     try {
       await this.data.upsertCart(memberId, groupId, qty);
       this.clampCredit();
-    } catch (e) {
-      this.error.set(apiErrorI18nKey(e, 'api.err.unknown'));
+    } catch {
       await this.data.refreshCart(memberId);
     }
   }
@@ -185,19 +178,17 @@ export class Cart implements OnInit {
   async remove(groupId: string) {
     const memberId = this.auth.currentUser()?.id;
     if (!memberId) return;
-    this.error.set('');
     try {
       await this.data.removeCartItem(memberId, groupId);
       this.clampCredit();
-    } catch (e) {
-      this.error.set(apiErrorI18nKey(e, 'api.err.unknown'));
+    } catch {
+      // API 錯誤已由 TelegramService 跳窗
     }
   }
 
   async checkout() {
     const memberId = this.auth.currentUser()?.id;
     if (!memberId) return;
-    this.error.set('');
     this.success.set(null);
     this.clampCredit();
     this.busy.set(true);
@@ -205,8 +196,8 @@ export class Cart implements OnInit {
       const res = await this.data.checkoutCart(memberId, this.creditInput());
       this.success.set({ cashDue: res.cashDue });
       this.creditInput.set(0);
-    } catch (e) {
-      this.error.set(apiErrorI18nKey(e, 'api.err.unknown'));
+    } catch {
+      // API 錯誤已由 TelegramService 跳窗
     } finally {
       this.busy.set(false);
     }

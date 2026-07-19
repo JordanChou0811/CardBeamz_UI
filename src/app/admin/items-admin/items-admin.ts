@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { DataService } from '../../services/data.service';
 import { Group, GroupCard, WarehouseItem } from '../../models/models';
 import { TranslatePipe } from '../../services/translate.pipe';
+import { AlertService } from '../../services/alert.service';
 import { ConfirmService } from '../../services/confirm.service';
 
 @Component({
@@ -86,9 +87,6 @@ import { ConfirmService } from '../../services/confirm.service';
           <input type="number" min="1" [(ngModel)]="quantity" />
         </div>
 
-        @if (error()) {
-          <p class="error-text">{{ error() | t }}</p>
-        }
         @if (success()) {
           <p class="ok-text">{{ 'aitems.assigned' | t }} {{ success() }} {{ 'wh.items' | t }}</p>
         }
@@ -230,6 +228,7 @@ import { ConfirmService } from '../../services/confirm.service';
 })
 export class ItemsAdmin {
   protected data = inject(DataService);
+  private alert = inject(AlertService);
   private confirm = inject(ConfirmService);
 
   memberId = '';
@@ -237,7 +236,6 @@ export class ItemsAdmin {
   groupCardId = '';
   quantity = 1;
 
-  error = signal('');
   success = signal(0);
 
   memberOptions = computed(() => this.data.members().filter((m) => m.role === 'member'));
@@ -283,20 +281,23 @@ export class ItemsAdmin {
   }
 
   async assign() {
-    this.error.set('');
     this.success.set(0);
     if (!this.memberId || !this.groupId || !this.groupCardId) {
-      this.error.set('aitems.errRequired');
+      await this.alert.error('aitems.errRequired');
       return;
     }
-    const created = await this.data.assignFromCatalog(
-      this.memberId,
-      this.groupCardId,
-      Number(this.quantity) || 1
-    );
-    this.success.set(created.length);
-    this.groupCardId = '';
-    this.quantity = 1;
+    try {
+      const created = await this.data.assignFromCatalog(
+        this.memberId,
+        this.groupCardId,
+        Number(this.quantity) || 1
+      );
+      this.success.set(created.length);
+      this.groupCardId = '';
+      this.quantity = 1;
+    } catch {
+      // API 錯誤已由 TelegramService 跳窗
+    }
   }
 
   async askRemove(it: WarehouseItem) {

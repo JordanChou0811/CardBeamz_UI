@@ -5,6 +5,7 @@ import { CloudinaryService, UploadedImage } from '../../services/cloudinary.serv
 import { CLOUDINARY, isCloudinaryConfigured } from '../../services/cloudinary.config';
 import { DataService } from '../../services/data.service';
 import { TranslatePipe } from '../../services/translate.pipe';
+import { AlertService } from '../../services/alert.service';
 import { ConfirmService } from '../../services/confirm.service';
 
 type UploadCategory = 'groups' | 'members' | 'system';
@@ -119,9 +120,6 @@ interface Pending {
             {{ uploading() ? ('upload.uploading' | t) : ('upload.uploadBtn' | t) }}
           </button>
         </div>
-        @if (!targetFolder()) {
-          <p class="error-text mt-1">{{ 'upload.needSub' | t }}</p>
-        }
       }
       <p class="hint-text mt-1">{{ 'upload.hint' | t }}</p>
     </div>
@@ -300,6 +298,7 @@ export class UploadAdmin {
   protected cloud = inject(CloudinaryService);
   protected data = inject(DataService);
   private confirm = inject(ConfirmService);
+  private alert = inject(AlertService);
   protected configured = isCloudinaryConfigured();
 
   category: UploadCategory = 'groups';
@@ -364,20 +363,26 @@ export class UploadAdmin {
 
   private addFiles(files: FileList) {
     const items: Pending[] = [];
+    let badType = false;
     for (const file of Array.from(files)) {
       const id = `p_${Date.now()}_${this.seq++}`;
       if (!file.type.startsWith('image/')) {
-        items.push({ id, file, preview: '', progress: 0, done: false, error: 'upload.errType' });
+        badType = true;
         continue;
       }
       items.push({ id, file, preview: URL.createObjectURL(file), progress: 0, done: false });
     }
-    this.pending.update((list) => [...list, ...items]);
+    if (badType) void this.alert.error('upload.errType');
+    if (items.length) this.pending.update((list) => [...list, ...items]);
   }
 
   async uploadAll() {
     const folder = this.targetFolder();
-    if (!this.configured || !folder) return;
+    if (!this.configured) return;
+    if (!folder) {
+      await this.alert.error('upload.needSub');
+      return;
+    }
     this.uploading.set(true);
     const targets = this.pending().filter((p) => !p.done && !p.error && p.preview);
     for (const p of targets) {
@@ -388,7 +393,8 @@ export class UploadAdmin {
         });
         this.patch(p.id, { progress: 100, done: true });
       } catch (err) {
-        this.patch(p.id, { error: (err as Error).message });
+        this.patch(p.id, { error: 'upload.errFailed' });
+        await this.alert.error('upload.errFailed', (err as Error).message);
       }
     }
     this.uploading.set(false);

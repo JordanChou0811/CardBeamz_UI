@@ -4,7 +4,7 @@ import { RouterLink } from '@angular/router';
 import { Group, PriceTier } from '../../models/models';
 import { AuthService } from '../../services/auth.service';
 import { DataService } from '../../services/data.service';
-import { apiErrorI18nKey } from '../../services/telegram.service';
+import { I18nService } from '../../services/i18n.service';
 import { TranslatePipe } from '../../services/translate.pipe';
 
 @Component({
@@ -15,10 +15,6 @@ import { TranslatePipe } from '../../services/translate.pipe';
       <h2>{{ 'shop.title' | t }}</h2>
       <a routerLink="/member/cart" class="btn btn-outline btn-sm">🛒 {{ 'nav.cart' | t }}</a>
     </div>
-
-    @if (error()) {
-      <p class="error-text mb">{{ error() | t }}</p>
-    }
 
     @if (data.listedGroups().length === 0) {
       <div class="card">
@@ -39,9 +35,21 @@ import { TranslatePipe } from '../../services/translate.pipe';
               <div class="text-muted">
                 {{ 'groups.remaining' | t }}：{{ remaining(g) }} / {{ g.totalStakes ?? 0 }}
               </div>
-              <div class="price-row">
-                <span>{{ 'shop.unitNow' | t }}</span>
-                <b>{{ unitPrice(g, qtyOf(g.id)) }} {{ 'common.yuan' | t }}</b>
+              <div class="price-list">
+                <div class="price-row">
+                  <span>{{ 'shop.priceBase' | t }}</span>
+                  <b>{{ g.basePrice ?? 0 }} {{ 'common.yuan' | t }}</b>
+                </div>
+                @for (t of tiersOf(g); track t.minQty) {
+                  <div class="price-row tier">
+                    <span>{{ tierLabel(t.minQty) }}</span>
+                    <b>{{ 'shop.perStake' | t }} {{ t.unitPrice }} {{ 'common.yuan' | t }}</b>
+                  </div>
+                }
+                <div class="price-row now">
+                  <span>{{ 'shop.unitNow' | t }}</span>
+                  <b>{{ unitPrice(g, qtyOf(g.id)) }} {{ 'common.yuan' | t }}</b>
+                </div>
               </div>
               <div class="buy-row">
                 <label>
@@ -107,11 +115,30 @@ import { TranslatePipe } from '../../services/translate.pipe';
         font-weight: 600;
         margin: 2px 0 6px;
       }
+      .price-list {
+        margin: 10px 0;
+        padding: 10px 0;
+        border-top: 1px solid var(--c-border);
+        border-bottom: 1px solid var(--c-border);
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
       .price-row {
         display: flex;
         justify-content: space-between;
-        margin: 8px 0;
+        align-items: baseline;
+        gap: 10px;
         font-size: 14px;
+      }
+      .price-row.tier {
+        color: var(--c-muted);
+        font-size: 13px;
+      }
+      .price-row.now {
+        margin-top: 2px;
+        padding-top: 6px;
+        border-top: 1px dashed var(--c-border);
       }
       .buy-row {
         display: flex;
@@ -135,8 +162,8 @@ import { TranslatePipe } from '../../services/translate.pipe';
 export class Shop implements OnInit {
   protected data = inject(DataService);
   private auth = inject(AuthService);
+  private i18n = inject(I18nService);
 
-  error = signal('');
   adding = signal<string | null>(null);
   private qtyMap = signal<Record<string, number>>({});
 
@@ -150,6 +177,16 @@ export class Shop implements OnInit {
 
   remaining(g: Group): number {
     return g.remainingStakes ?? Math.max(0, (g.totalStakes ?? 0) - (g.soldStakes ?? 0));
+  }
+
+  tiersOf(g: Group): PriceTier[] {
+    return [...(g.priceTiers ?? [])]
+      .filter((t) => t.minQty >= 2)
+      .sort((a, b) => a.minQty - b.minQty);
+  }
+
+  tierLabel(minQty: number): string {
+    return this.i18n.t('shop.priceTier').replace('{{n}}', String(minQty));
   }
 
   qtyOf(id: string): number {
@@ -171,13 +208,12 @@ export class Shop implements OnInit {
     const rem = this.remaining(g);
     const qty = Math.min(this.qtyOf(g.id), rem);
     if (qty < 1) return;
-    this.error.set('');
     this.adding.set(g.id);
     try {
       await this.data.upsertCart(memberId, g.id, qty);
       await this.data.refreshListedGroups();
-    } catch (e) {
-      this.error.set(apiErrorI18nKey(e, 'api.err.unknown'));
+    } catch {
+      // API 錯誤已由 TelegramService 跳窗
     } finally {
       this.adding.set(null);
     }
