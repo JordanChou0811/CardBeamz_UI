@@ -101,21 +101,38 @@ function isTeamSale(type?: string): boolean {
                 type="button"
                 class="team-cell"
                 [class.sold]="s.status === 'sold'"
-                [disabled]="s.status === 'sold' || adding() === s.id"
-                (click)="s.status === 'available' && addTeam(s)"
+                [class.selected]="isTeamSelected(s.id)"
+                [disabled]="s.status === 'sold'"
+                (click)="toggleTeam(s)"
               >
                 <div class="t-code">{{ s.teamCode }}</div>
                 <div class="t-name">{{ s.teamName }}</div>
                 <div class="t-price">{{ s.price }} {{ 'common.yuan' | t }}</div>
                 <div class="t-action">
-                  {{ (s.status === 'sold' ? 'shop.teamSold' : 'shop.buyTeam') | t }}
+                  @if (s.status === 'sold') {
+                    {{ 'shop.teamSold' | t }}
+                  } @else if (isTeamSelected(s.id)) {
+                    {{ 'shop.teamSelected' | t }}
+                  } @else {
+                    {{ 'shop.buyTeam' | t }}
+                  }
                 </div>
               </button>
             }
           </div>
           <div class="modal-actions mt-2">
             <button type="button" class="btn btn-outline" (click)="closeTeams()">{{ 'common.cancel' | t }}</button>
-            <a routerLink="/member/cart" class="btn btn-primary" (click)="closeTeams()">🛒 {{ 'nav.cart' | t }}</a>
+            <button
+              type="button"
+              class="btn btn-primary"
+              [disabled]="selectedTeamIds().size === 0 || adding() === 'teams'"
+              (click)="addSelectedTeams()"
+            >
+              {{ 'shop.addCart' | t }}
+              @if (selectedTeamIds().size > 0) {
+                （{{ selectedTeamIds().size }}）
+              }
+            </button>
           </div>
         </div>
       </div>
@@ -226,7 +243,11 @@ function isTeamSale(type?: string): boolean {
       }
       .team-cell:hover:not(:disabled) {
         border-color: var(--c-primary);
+      }
+      .team-cell.selected {
+        border-color: var(--c-primary);
         background: var(--c-primary-light);
+        box-shadow: inset 0 0 0 1px var(--c-primary);
       }
       .team-cell.sold,
       .team-cell:disabled {
@@ -247,6 +268,9 @@ function isTeamSale(type?: string): boolean {
       .t-action {
         font-size: 12px;
         font-weight: 700;
+        color: var(--c-muted);
+      }
+      .team-cell.selected .t-action {
         color: var(--c-primary-dark);
       }
       .team-cell.sold .t-action {
@@ -263,6 +287,7 @@ export class Shop implements OnInit {
   adding = signal<string | null>(null);
   teamGroup = signal<Group | null>(null);
   teamSlots = signal<TeamSlot[]>([]);
+  selectedTeamIds = signal<Set<string>>(new Set());
   private qtyMap = signal<Record<string, number>>({});
 
   readonly isTeamSale = isTeamSale;
@@ -310,6 +335,7 @@ export class Shop implements OnInit {
 
   async openTeams(g: Group) {
     this.teamGroup.set(g);
+    this.selectedTeamIds.set(new Set());
     await this.data.refreshTeamSlots(g.id);
     this.teamSlots.set(this.data.teamSlots());
   }
@@ -317,6 +343,21 @@ export class Shop implements OnInit {
   closeTeams() {
     this.teamGroup.set(null);
     this.teamSlots.set([]);
+    this.selectedTeamIds.set(new Set());
+  }
+
+  isTeamSelected(id: string): boolean {
+    return this.selectedTeamIds().has(id);
+  }
+
+  toggleTeam(s: TeamSlot) {
+    if (s.status !== 'available') return;
+    this.selectedTeamIds.update((prev) => {
+      const next = new Set(prev);
+      if (next.has(s.id)) next.delete(s.id);
+      else next.add(s.id);
+      return next;
+    });
   }
 
   async addStake(g: Group) {
@@ -336,17 +377,30 @@ export class Shop implements OnInit {
     }
   }
 
-  async addTeam(s: TeamSlot) {
+  async addSelectedTeams() {
     const memberId = this.auth.currentUser()?.id;
-    if (!memberId) return;
-    this.adding.set(s.id);
+    const group = this.teamGroup();
+    const ids = [...this.selectedTeamIds()];
+    if (!memberId || !group || ids.length === 0) return;
+    this.adding.set('teams');
     try {
-      await this.data.upsertCartTeam(memberId, s.id, true);
-      await this.data.refreshTeamSlots(s.groupId);
+      for (const teamSlotId of ids) {
+        await this.data.upsertCartTeam(memberId, teamSlotId, true);
+      }
+      await this.data.refreshTeamSlots(group.id);
       this.teamSlots.set(this.data.teamSlots());
       await this.data.refreshListedGroups();
+      this.closeTeams();
     } catch {
-      // API 錯誤已跳窗
+      // API 錯誤已跳窗；保留已選，方便重試
+      await this.data.refreshTeamSlots(group.id);
+      this.teamSlots.set(this.data.teamSlots());
+      const available = new Set(
+        this.teamSlots()
+          .filter((s) => s.status === 'available')
+          .map((s) => s.id)
+      );
+      this.selectedTeamIds.update((prev) => new Set([...prev].filter((id) => available.has(id))));
     } finally {
       this.adding.set(null);
     }
