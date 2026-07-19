@@ -101,7 +101,10 @@ const DICT: Dict = {
   'api.err.4001': { zh: '團代號已存在', en: 'Group code already exists' },
   'api.err.4002': { zh: '團不存在', en: 'Group not found' },
   'api.err.4101': { zh: '團卡片不存在', en: 'Group card not found' },
-  'api.err.4201': { zh: '上架中不可改價，請先下架', en: 'Unlist before changing sale settings' },
+  'api.err.4201': {
+    zh: '上架中不可改總注數或玩法，請先下架',
+    en: 'Unlist before changing total stakes or play type',
+  },
   'api.err.4202': {
     zh: '無法上架：需有團卡片，並設定總注數與一注金額',
     en: 'Cannot list: need cards, total stakes and base price',
@@ -112,6 +115,10 @@ const DICT: Dict = {
   'api.err.4206': {
     zh: '團拆金折抵不合法（須整數，且現金至少留 1 元）',
     en: 'Invalid credit offset (integer; cash must remain at least 1)',
+  },
+  'api.err.4207': {
+    zh: '上架中只准降價，不可漲價',
+    en: 'While listed, price can only be decreased',
   },
   'api.err.5001': { zh: '消息不存在', en: 'News item not found' },
   'api.err.9001': { zh: '參數錯誤', en: 'Invalid parameters' },
@@ -341,8 +348,8 @@ const DICT: Dict = {
   'groups.publish': { zh: '上架', en: 'List' },
   'groups.unlist': { zh: '下架', en: 'Unlist' },
   'groups.saleHint': {
-    zh: '上架中不可改價。下架會清空認購並退還已用團拆金。',
-    en: 'Cannot change price while listed. Unlisting clears purchases and refunds credit.',
+    zh: '上架中可降價（差額退團拆金），不可漲價；總注數／玩法須先下架再改。下架會清空認購並退還已用團拆金。',
+    en: 'While listed: price can only drop (diff refunded as credit). Unlist to change stakes/type. Unlisting clears purchases and refunds credit used.',
   },
   'groups.saleSection': { zh: '銷售設定', en: 'Sale settings' },
   'confirm.unlistGroup': {
@@ -350,6 +357,10 @@ const DICT: Dict = {
     en: 'Unlist? Purchases will be cleared and credit refunded',
   },
   'confirm.publishGroup': { zh: '確定上架此團？', en: 'List this group for sale?' },
+  'confirm.dropPrice': {
+    zh: '確定降價？差額將一律退還為團拆金（含原付現金部分）',
+    en: 'Confirm price drop? The difference will be refunded as credit (including cash paid).',
+  },
 
   'nav.shop': { zh: '現正開團', en: 'On Sale' },
   'nav.cart': { zh: '購物車', en: 'Cart' },

@@ -77,29 +77,66 @@ public class GroupService {
     return Map.of("group", toView(group));
   }
 
-  /** 修改銷售設定：僅 draft / unlisted */
+  /**
+   * 修改銷售設定。
+   *
+   * <ul>
+   *   <li>draft / unlisted：可改玩法、總注數、價格
+   *   <li>listed：可降價（含多注單價）；差額一律退團拆金；不可漲價；不可改總注數／玩法
+   * </ul>
+   */
   @Transactional
   public Map<String, Object> updateSale(
       String id, String type, Integer totalStakes, Integer basePrice, List<PriceTier> tiers) {
     GroupEntity group = require(id);
-    requireNotListed(group);
-    if (type != null && !type.isBlank()) {
-      group.setType(type.trim());
-    }
-    if (totalStakes != null) {
-      if (totalStakes < 0) {
-        throw new ApiException("group", "update-sale", "銷售設定", ReturnCodes.SYSTEM_VALIDATION, "總注數不可為負");
+    boolean listed = GroupEntity.STATUS_LISTED.equals(group.getStatus());
+
+    if (listed) {
+      if (type != null && !type.isBlank() && !type.trim().equals(group.getType())) {
+        throw new ApiException(
+            "group", "update-sale", "銷售設定", ReturnCodes.GROUP_LISTED_LOCKED, "上架中不可改玩法，請先下架");
       }
-      group.setTotalStakes(totalStakes);
-    }
-    if (basePrice != null) {
-      if (basePrice < 0) {
-        throw new ApiException("group", "update-sale", "銷售設定", ReturnCodes.SYSTEM_VALIDATION, "單價不可為負");
+      if (totalStakes != null && totalStakes != group.getTotalStakes()) {
+        throw new ApiException(
+            "group", "update-sale", "銷售設定", ReturnCodes.GROUP_LISTED_LOCKED, "上架中不可改總注數，請先下架");
       }
-      group.setBasePrice(basePrice);
+    } else {
+      if (type != null && !type.isBlank()) {
+        group.setType(type.trim());
+      }
+      if (totalStakes != null) {
+        if (totalStakes < 0) {
+          throw new ApiException(
+              "group", "update-sale", "銷售設定", ReturnCodes.SYSTEM_VALIDATION, "總注數不可為負");
+        }
+        group.setTotalStakes(totalStakes);
+      }
     }
+
+    int newBase = basePrice != null ? basePrice : group.getBasePrice();
+    if (newBase < 0) {
+      throw new ApiException("group", "update-sale", "銷售設定", ReturnCodes.SYSTEM_VALIDATION, "單價不可為負");
+    }
+    List<PriceTier> newTiers =
+        tiers != null
+            ? StakePricing.parseTiers(StakePricing.toJson(tiers))
+            : StakePricing.parseTiers(group.getPriceTiersJson());
+
+    if (listed) {
+      assertNotPriceIncrease(group, newBase, newTiers);
+      int refundedTotal = applyPriceDropAndRefund(group, newBase, newTiers);
+      group.setBasePrice(newBase);
+      group.setPriceTiersJson(StakePricing.toJson(newTiers));
+      groupRepository.save(group);
+      Map<String, Object> data = new HashMap<>();
+      data.put("group", toView(group));
+      data.put("creditRefunded", refundedTotal);
+      return data;
+    }
+
+    group.setBasePrice(newBase);
     if (tiers != null) {
-      group.setPriceTiersJson(StakePricing.toJson(tiers));
+      group.setPriceTiersJson(StakePricing.toJson(newTiers));
     }
     groupRepository.save(group);
     return Map.of("group", toView(group));
@@ -184,11 +221,63 @@ public class GroupService {
     return m;
   }
 
-  private void requireNotListed(GroupEntity group) {
-    if (GroupEntity.STATUS_LISTED.equals(group.getStatus())) {
-      throw new ApiException(
-          "group", "update-sale", "銷售設定", ReturnCodes.GROUP_LISTED_LOCKED, "上架中不可改價，請先下架");
+  /** 上架中：任一注數的新單價不可高於舊單價 */
+  private void assertNotPriceIncrease(GroupEntity group, int newBase, List<PriceTier> newTiers) {
+    List<PriceTier> oldTiers = StakePricing.parseTiers(group.getPriceTiersJson());
+    int oldBase = group.getBasePrice();
+    int maxQ = Math.max(group.getTotalStakes(), 1);
+    for (int q = 1; q <= maxQ; q++) {
+      int oldU = StakePricing.unitPrice(oldBase, oldTiers, q);
+      int newU = StakePricing.unitPrice(newBase, newTiers, q);
+      if (newU > oldU) {
+        throw new ApiException(
+            "group",
+            "update-sale",
+            "銷售設定",
+            ReturnCodes.GROUP_PRICE_INCREASE_FORBIDDEN,
+            "上架中只准降價，不可漲價");
+      }
     }
+  }
+
+  /**
+   * 依新價表重算既有認購；差額一律退團拆金（含原付現金部分）。
+   *
+   * @return 本次退還團拆金總額
+   */
+  private int applyPriceDropAndRefund(GroupEntity group, int newBase, List<PriceTier> newTiers) {
+    List<StakePurchase> active =
+        stakePurchaseRepository.findByGroupIdAndStatus(group.getId(), StakePurchase.STATUS_ACTIVE);
+    int refundedTotal = 0;
+    for (StakePurchase p : active) {
+      int newUnit = StakePricing.unitPrice(newBase, newTiers, p.getQuantity());
+      int newSubtotal = newUnit * p.getQuantity();
+      int oldSubtotal = p.getSubtotal();
+      int refund = oldSubtotal - newSubtotal;
+      if (refund <= 0) {
+        // 同價：仍同步鎖定單價欄位
+        p.setUnitPrice(newUnit);
+        p.setSubtotal(newSubtotal);
+        continue;
+      }
+      memberService.addCredit(p.getMemberId(), refund);
+      refundedTotal += refund;
+      p.setUnitPrice(newUnit);
+      p.setSubtotal(newSubtotal);
+      // 帳面：先扣現金份額再扣原團拆金折抵，使 creditUsed + cashDue = newSubtotal
+      int cash = p.getCashDue();
+      int cred = p.getCreditUsed();
+      if (cash >= refund) {
+        p.setCashDue(cash - refund);
+      } else {
+        p.setCashDue(0);
+        p.setCreditUsed(Math.max(0, cred - (refund - cash)));
+      }
+    }
+    if (!active.isEmpty()) {
+      stakePurchaseRepository.saveAll(active);
+    }
+    return refundedTotal;
   }
 
   private void refundAndClearPurchases(GroupEntity group) {

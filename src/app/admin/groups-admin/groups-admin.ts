@@ -323,7 +323,7 @@ import { ConfirmService } from '../../services/confirm.service';
               </div>
               <div class="field">
                 <label>{{ 'groups.basePrice' | t }}</label>
-                <input type="number" min="0" [(ngModel)]="basePrice" [disabled]="formListed()" />
+                <input type="number" min="0" [(ngModel)]="basePrice" />
               </div>
             </div>
             <div class="field">
@@ -334,26 +334,20 @@ import { ConfirmService } from '../../services/confirm.service';
                     type="number"
                     min="2"
                     [(ngModel)]="t.minQty"
-                    [disabled]="formListed()"
                     [placeholder]="'groups.tierMin' | t"
                   />
                   <input
                     type="number"
                     min="0"
                     [(ngModel)]="t.unitPrice"
-                    [disabled]="formListed()"
                     [placeholder]="'groups.tierPrice' | t"
                   />
-                  @if (!formListed()) {
-                    <button type="button" class="btn btn-danger btn-icon" (click)="removeTier($index)">🗑️</button>
-                  }
+                  <button type="button" class="btn btn-danger btn-icon" (click)="removeTier($index)">🗑️</button>
                 </div>
               }
-              @if (!formListed()) {
-                <button type="button" class="btn btn-outline btn-sm" (click)="addTier()">
-                  + {{ 'groups.addTier' | t }}
-                </button>
-              }
+              <button type="button" class="btn btn-outline btn-sm" (click)="addTier()">
+                + {{ 'groups.addTier' | t }}
+              </button>
             </div>
           </div>
 
@@ -612,6 +606,9 @@ export class GroupsAdmin {
   basePrice = 0;
   priceTiers: PriceTier[] = [];
   formListed = signal(false);
+  /** 開啟編輯時的價格快照（用來判斷上架中是否降價） */
+  private originalBasePrice = 0;
+  private originalTiersJson = '[]';
 
   editingId = signal<string | null>(null);
   groupFormOpen = signal(false);
@@ -677,6 +674,18 @@ export class GroupsAdmin {
     this.priceTiers = this.priceTiers.filter((_, i) => i !== index);
   }
 
+  private normalizedTiers(): PriceTier[] {
+    return this.priceTiers
+      .filter((t) => t.minQty >= 2)
+      .map((t) => ({ minQty: Number(t.minQty) || 0, unitPrice: Number(t.unitPrice) || 0 }));
+  }
+
+  private priceChangedFromOriginal(): boolean {
+    const base = Number(this.basePrice) || 0;
+    const tiersJson = JSON.stringify(this.normalizedTiers());
+    return base !== this.originalBasePrice || tiersJson !== this.originalTiersJson;
+  }
+
   async save() {
     if (!this.code.trim() || !this.name.trim()) {
       await this.alert.error('groups.errRequired');
@@ -687,32 +696,35 @@ export class GroupsAdmin {
       name: this.name.trim(),
       photo: this.photo.trim() || '#6366f1',
     };
+    const salePayload = {
+      type: this.saleType,
+      totalStakes: Number(this.totalStakes) || 0,
+      basePrice: Number(this.basePrice) || 0,
+      priceTiers: this.normalizedTiers(),
+    };
     try {
       const id = this.editingId();
       if (id) {
-        await this.data.updateGroup(id, payload);
-        if (!this.formListed()) {
-          await this.data.updateGroupSale(id, {
-            type: this.saleType,
-            totalStakes: Number(this.totalStakes) || 0,
-            basePrice: Number(this.basePrice) || 0,
-            priceTiers: this.priceTiers
-              .filter((t) => t.minQty >= 2)
-              .map((t) => ({ minQty: Number(t.minQty) || 0, unitPrice: Number(t.unitPrice) || 0 })),
+        if (this.formListed() && this.priceChangedFromOriginal()) {
+          const ok = await this.confirm.ask({
+            title: 'confirm.dropPrice',
+            confirmKey: 'common.save',
+            confirmTone: 'primary',
           });
+          if (!ok) return;
         }
+        await this.data.updateGroup(id, payload);
+        await this.data.updateGroupSale(
+          id,
+          this.formListed()
+            ? { basePrice: salePayload.basePrice, priceTiers: salePayload.priceTiers }
+            : salePayload
+        );
       } else {
         await this.data.addGroup(payload);
         const created = this.data.groups().find((g) => g.code === payload.code);
         if (created) {
-          await this.data.updateGroupSale(created.id, {
-            type: this.saleType,
-            totalStakes: Number(this.totalStakes) || 0,
-            basePrice: Number(this.basePrice) || 0,
-            priceTiers: this.priceTiers
-              .filter((t) => t.minQty >= 2)
-              .map((t) => ({ minQty: Number(t.minQty) || 0, unitPrice: Number(t.unitPrice) || 0 })),
-          });
+          await this.data.updateGroupSale(created.id, salePayload);
         }
       }
       this.closeGroupForm();
@@ -730,6 +742,8 @@ export class GroupsAdmin {
     this.totalStakes = g.totalStakes ?? 0;
     this.basePrice = g.basePrice ?? 0;
     this.priceTiers = (g.priceTiers ?? []).map((t) => ({ ...t }));
+    this.originalBasePrice = this.basePrice;
+    this.originalTiersJson = JSON.stringify(this.normalizedTiers());
     this.formListed.set(g.status === 'listed');
     this.groupFormOpen.set(true);
   }
@@ -743,6 +757,8 @@ export class GroupsAdmin {
     this.totalStakes = 0;
     this.basePrice = 0;
     this.priceTiers = [];
+    this.originalBasePrice = 0;
+    this.originalTiersJson = '[]';
     this.formListed.set(false);
   }
 

@@ -64,7 +64,7 @@ public final class ReturnCodes {
   public static final String GROUP_NOT_FOUND = "4002";
   /** 團卡片目錄項目不存在 */
   public static final String GROUP_CARD_NOT_FOUND = "4101";
-  /** 上架中不可修改銷售設定（請先下架） */
+  /** 上架中不可改總注數／玩法（請先下架） */
   public static final String GROUP_LISTED_LOCKED = "4201";
   /** 上架條件不符（需有卡片、注數與價格） */
   public static final String GROUP_CANNOT_LIST = "4202";
@@ -76,6 +76,8 @@ public final class ReturnCodes {
   public static final String CART_EMPTY = "4205";
   /** 團拆金折抵不合法（須整數且現金至少留 1 元） */
   public static final String CART_CREDIT_INVALID = "4206";
+  /** 上架中只准降價，不可漲價 */
+  public static final String GROUP_PRICE_INCREASE_FORBIDDEN = "4207";
 
   // ----- news 5xxx -----
   /** 消息不存在 */

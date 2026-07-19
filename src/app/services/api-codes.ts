@@ -57,7 +57,7 @@ export const ReturnCodes = {
   GROUP_NOT_FOUND: '4002',
   /** 團卡片目錄項目不存在 */
   GROUP_CARD_NOT_FOUND: '4101',
-  /** 上架中不可修改銷售設定 */
+  /** 上架中不可改總注數／玩法 */
   GROUP_LISTED_LOCKED: '4201',
   /** 上架條件不符 */
   GROUP_CANNOT_LIST: '4202',
@@ -69,6 +69,8 @@ export const ReturnCodes = {
   CART_EMPTY: '4205',
   /** 團拆金折抵不合法 */
   CART_CREDIT_INVALID: '4206',
+  /** 上架中只准降價 */
+  GROUP_PRICE_INCREASE_FORBIDDEN: '4207',
 
   // ----- news 5xxx -----
   /** 消息不存在 */
@@ -120,6 +122,7 @@ export const RETURN_CODE_I18N: Record<string, string> = {
   [ReturnCodes.GROUP_STAKES_INSUFFICIENT]: 'api.err.4204',
   [ReturnCodes.CART_EMPTY]: 'api.err.4205',
   [ReturnCodes.CART_CREDIT_INVALID]: 'api.err.4206',
+  [ReturnCodes.GROUP_PRICE_INCREASE_FORBIDDEN]: 'api.err.4207',
   // news
   [ReturnCodes.NEWS_NOT_FOUND]: 'api.err.5001',
   // system

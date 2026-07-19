@@ -487,7 +487,16 @@ export class DataService {
     if (!environment.useApi) {
       const next = this.groups().map((g) => {
         if (g.id !== id) return g;
-        if (g.status === 'listed') throw new Error('listed');
+        if (g.status === 'listed') {
+          // mock：上架中僅允許改價欄位（不模擬退款）
+          const basePrice = sale.basePrice ?? g.basePrice ?? 0;
+          if (basePrice > (g.basePrice ?? 0)) throw new Error('price increase');
+          return {
+            ...g,
+            basePrice,
+            priceTiers: sale.priceTiers ?? g.priceTiers,
+          };
+        }
         const totalStakes = sale.totalStakes ?? g.totalStakes ?? 0;
         const sold = g.soldStakes ?? 0;
         return {
