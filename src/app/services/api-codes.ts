@@ -67,7 +67,7 @@ export const ReturnCodes = {
   GROUP_STAKES_INSUFFICIENT: '4204',
   /** 購物車是空的 */
   CART_EMPTY: '4205',
-  /** 團拆金折抵不合法 */
+  /** 團拆金折抵不合法（超過餘額或合計） */
   CART_CREDIT_INVALID: '4206',
   /** 上架中只准降價 */
   GROUP_PRICE_INCREASE_FORBIDDEN: '4207',

@@ -74,7 +74,7 @@ public final class ReturnCodes {
   public static final String GROUP_STAKES_INSUFFICIENT = "4204";
   /** 購物車是空的 */
   public static final String CART_EMPTY = "4205";
-  /** 團拆金折抵不合法（須整數且現金至少留 1 元） */
+  /** 團拆金折抵不合法（須非負整數，且不可超過餘額與合計） */
   public static final String CART_CREDIT_INVALID = "4206";
   /** 上架中只准降價，不可漲價 */
   public static final String GROUP_PRICE_INCREASE_FORBIDDEN = "4207";

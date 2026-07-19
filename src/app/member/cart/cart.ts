@@ -79,8 +79,9 @@ import { TranslatePipe } from '../../services/translate.pipe';
             (ngModelChange)="onCreditChange($event)"
           />
           <p class="hint-text">
-            {{ 'cart.creditHint' | t }}（{{ 'credit.balance' | t }}：{{ balance() }} /
-            max {{ data.cartMaxCredit() }}）
+            {{ 'cart.creditHint' | t }}（{{ 'credit.balance' | t }}：{{ balance() }}
+            {{ 'common.yuan' | t }}；{{ 'cart.creditMax' | t }} {{ maxCredit() }}
+            {{ 'common.yuan' | t }}）
           </p>
         </div>
         <div class="row">
@@ -138,7 +139,7 @@ export class Cart implements OnInit {
   cashDue = computed(() => {
     const grand = this.data.cartGrandSubtotal();
     if (grand <= 0) return 0;
-    return Math.max(1, grand - this.creditInput());
+    return Math.max(0, grand - this.creditInput());
   });
 
   async ngOnInit() {
@@ -147,9 +148,9 @@ export class Cart implements OnInit {
     this.clampCredit();
   }
 
-  private maxCredit(): number {
+  maxCredit(): number {
     const grand = this.data.cartGrandSubtotal();
-    return Math.min(this.data.cartMaxCredit(), this.balance(), Math.max(0, grand - 1));
+    return Math.min(this.data.cartMaxCredit(), this.balance(), Math.max(0, grand));
   }
 
   clampCredit() {

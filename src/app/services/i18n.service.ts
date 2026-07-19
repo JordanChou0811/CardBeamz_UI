@@ -113,8 +113,8 @@ const DICT: Dict = {
   'api.err.4204': { zh: '剩餘注數不足', en: 'Not enough stakes remaining' },
   'api.err.4205': { zh: '購物車是空的', en: 'Cart is empty' },
   'api.err.4206': {
-    zh: '團拆金折抵不合法（須整數，且現金至少留 1 元）',
-    en: 'Invalid credit offset (integer; cash must remain at least 1)',
+    zh: '團拆金折抵不合法（須為整數，且不可超過餘額與合計）',
+    en: 'Invalid credit offset (integer; cannot exceed balance or total)',
   },
   'api.err.4207': {
     zh: '上架中只准降價，不可漲價',
@@ -378,9 +378,10 @@ const DICT: Dict = {
   'cart.grand': { zh: '合計', en: 'Total' },
   'cart.creditUse': { zh: '使用團拆金折抵', en: 'Credit to use' },
   'cart.creditHint': {
-    zh: '須為整數；現金至少留 1 元',
-    en: 'Integer only; at least 1 cash remaining',
+    zh: '須為整數；可折抵全部（現金可為 0）',
+    en: 'Integer only; can cover the full amount (cash may be 0)',
   },
+  'cart.creditMax': { zh: '最多可折', en: 'Max usable' },
   'cart.cashDue': { zh: '應付現金', en: 'Cash due' },
   'cart.checkout': { zh: '結帳', en: 'Checkout' },
   'cart.checkedOut': { zh: '認購成功', en: 'Purchase complete' },

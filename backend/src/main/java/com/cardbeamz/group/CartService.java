@@ -25,7 +25,7 @@ public class CartService {
   private final MemberService memberService;
 
   public Map<String, Object> list(String memberId) {
-    memberService.require(memberId);
+    Member member = memberService.require(memberId);
     List<CartItem> items = cartItemRepository.findByMemberIdOrderByUpdatedAtDesc(memberId);
     List<Map<String, Object>> lines = new ArrayList<>();
     int grand = 0;
@@ -42,7 +42,8 @@ public class CartService {
     Map<String, Object> data = new HashMap<>();
     data.put("items", lines);
     data.put("grandSubtotal", grand);
-    data.put("maxCreditUsable", Math.max(0, grand - 1));
+    // 團拆金可折全部；上限為 min(餘額, 合計)
+    data.put("maxCreditUsable", Math.max(0, Math.min(member.getCredit(), grand)));
     return data;
   }
 
@@ -89,9 +90,9 @@ public class CartService {
   }
 
   /**
-   * 結帳：下單當下重算單價；團拆金折抵須整數且現金至少留 1 元。
+   * 結帳：下單當下重算單價；團拆金折抵須為非負整數，可折抵全部（現金可為 0）。
    *
-   * @param creditToUse 想用的團拆金（可大於可用額，會被截斷）
+   * @param creditToUse 想用的團拆金（超過可用額會拒絕）
    */
   @Transactional
   public Map<String, Object> checkout(String memberId, int creditToUse) {
@@ -127,7 +128,7 @@ public class CartService {
       throw new ApiException("cart", "checkout", "結帳", ReturnCodes.SYSTEM_VALIDATION, "結帳金額異常");
     }
 
-    int maxCredit = Math.min(member.getCredit(), grand - 1);
+    int maxCredit = Math.min(member.getCredit(), grand);
     int credit = Math.max(0, creditToUse);
     if (credit > maxCredit) {
       throw new ApiException(
@@ -135,7 +136,7 @@ public class CartService {
           "checkout",
           "結帳",
           ReturnCodes.CART_CREDIT_INVALID,
-          "團拆金折抵過多（現金須至少留 1 元，且不可超過餘額）");
+          "團拆金折抵過多（不可超過餘額與合計）");
     }
     int cashDue = grand - credit;
 
