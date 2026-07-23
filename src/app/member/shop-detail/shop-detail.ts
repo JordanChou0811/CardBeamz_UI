@@ -37,7 +37,7 @@ function unitPriceFor(basePrice: number, tiers: PriceTier[], quantity: number): 
     } @else if (group(); as g) {
       <div class="detail">
         <div class="hero card">
-          <div class="thumb" [style.background]="isColor(g.photo) ? g.photo : null">
+          <div class="hero-media" [style.background]="isColor(g.photo) ? g.photo : null">
             @if (!isColor(g.photo) && g.photo) {
               <img [src]="g.photo" [alt]="g.name" />
             }
@@ -186,21 +186,23 @@ function unitPriceFor(basePrice: number, tiers: PriceTier[], quantity: number): 
       }
       .hero {
         display: grid;
-        grid-template-columns: minmax(140px, 280px) 1fr;
+        grid-template-columns: minmax(160px, 240px) 1fr;
         gap: 16px;
-        align-items: center;
+        align-items: start;
       }
-      .thumb {
+      .hero-media {
         width: 100%;
         aspect-ratio: 1;
         border-radius: var(--radius-sm);
         overflow: hidden;
         background: var(--c-bg);
+        align-self: start;
       }
-      .thumb img {
+      .hero-media img {
         width: 100%;
         height: 100%;
         object-fit: cover;
+        object-position: center;
         display: block;
       }
       .code {

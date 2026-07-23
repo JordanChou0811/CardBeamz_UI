@@ -4,6 +4,7 @@ import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
@@ -30,7 +31,7 @@ public class OrderEntity {
   private String memberId;
 
   @Builder.Default
-  @ElementCollection
+  @ElementCollection(fetch = FetchType.EAGER)
   @CollectionTable(name = "order_item_ids", joinColumns = @JoinColumn(name = "order_id"))
   @Column(name = "item_id")
   private List<String> itemIds = new ArrayList<>();

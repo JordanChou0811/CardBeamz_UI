@@ -20,6 +20,7 @@ public class OrderService {
   private final OrderRepository orderRepository;
   private final WarehouseItemRepository itemRepository;
 
+  @Transactional(readOnly = true)
   public Map<String, Object> listByStatus(String status, String memberId) {
     List<OrderEntity> orders =
         memberId == null || memberId.isBlank()
