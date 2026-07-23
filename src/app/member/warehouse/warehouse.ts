@@ -5,6 +5,7 @@ import { AlertService } from '../../services/alert.service';
 import { AuthService } from '../../services/auth.service';
 import { DataService } from '../../services/data.service';
 import { TranslatePipe } from '../../services/translate.pipe';
+import { ImageLightbox } from '../../shared/image-lightbox/image-lightbox';
 import {
   CvsBrand,
   ShippingInfo,
@@ -15,7 +16,7 @@ import {
 
 @Component({
   selector: 'app-warehouse',
-  imports: [FormsModule, TranslatePipe],
+  imports: [FormsModule, TranslatePipe, ImageLightbox],
   template: `
     <div class="flex-between mb">
       <h2>{{ 'wh.title' | t }}</h2>
@@ -68,7 +69,20 @@ import {
                     }
                   </td>
                   <td>
-                    <div class="thumb" [style.background]="it.groupPhoto">{{ it.cbz.slice(0, 5) }}</div>
+                    <button
+                      type="button"
+                      class="thumb thumb-btn"
+                      [class.clickable]="!isColor(it.groupPhoto) && !!it.groupPhoto"
+                      [style.background]="isColor(it.groupPhoto) ? it.groupPhoto : null"
+                      [disabled]="isColor(it.groupPhoto) || !it.groupPhoto"
+                      (click)="openPhoto(it.groupPhoto)"
+                    >
+                      @if (!isColor(it.groupPhoto) && it.groupPhoto) {
+                        <img [src]="it.groupPhoto" alt="" />
+                      } @else {
+                        {{ it.cbz.slice(0, 5) }}
+                      }
+                    </button>
                   </td>
                   <td>
                     <button class="btn btn-outline btn-sm" (click)="askRecycle(it)">{{ 'wh.recycle' | t }}</button>
@@ -215,6 +229,8 @@ import {
         </div>
       </div>
     }
+
+    <app-image-lightbox [url]="previewUrl()" (closed)="previewUrl.set(null)" />
   `,
   styles: [
     `
@@ -239,6 +255,34 @@ import {
       }
       td .btn {
         margin-right: 6px;
+      }
+      .thumb {
+        overflow: hidden;
+      }
+      .thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        pointer-events: none;
+      }
+      button.thumb-btn {
+        border: none;
+        padding: 0;
+        font: inherit;
+        color: inherit;
+        cursor: default;
+        transition: transform 0.12s ease, box-shadow 0.12s ease;
+      }
+      button.thumb-btn.clickable {
+        cursor: pointer;
+      }
+      button.thumb-btn.clickable:hover {
+        transform: scale(1.06);
+        box-shadow: 0 0 0 2px var(--c-primary);
+      }
+      button.thumb-btn:disabled {
+        opacity: 1;
       }
       .method-row {
         display: flex;
@@ -299,6 +343,17 @@ export class Warehouse {
   });
 
   total = computed(() => SHIPPING_FEE[this.method()]);
+
+  isColor(value?: string): boolean {
+    return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value?.trim() ?? '');
+  }
+
+  previewUrl = signal<string | null>(null);
+
+  openPhoto(photo?: string) {
+    if (!photo || this.isColor(photo)) return;
+    this.previewUrl.set(photo);
+  }
 
   allChecked() {
     const list = this.items();

@@ -286,6 +286,15 @@ public class GroupService {
     m.put("soldStakes", sold);
     m.put("remainingStakes", Math.max(0, g.getTotalStakes() - sold));
     m.put("priceTiers", tiers);
+    if (GroupEntity.isTeamSale(g.getType())) {
+      int minTeamPrice =
+          teamSlotRepository.findByGroupIdOrderByTeamCodeAsc(g.getId()).stream()
+              .filter(s -> TeamSlot.STATUS_AVAILABLE.equals(s.getStatus()))
+              .mapToInt(TeamSlot::getPrice)
+              .min()
+              .orElse(0);
+      m.put("minTeamPrice", minTeamPrice);
+    }
     m.put("createdAt", g.getCreatedAt() == null ? null : g.getCreatedAt().toString());
     return m;
   }

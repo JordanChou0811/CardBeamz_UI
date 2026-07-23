@@ -20,6 +20,11 @@ export const routes: Routes = [
         loadComponent: () => import('./member/shop/shop').then((m) => m.Shop),
       },
       {
+        path: 'shop/:groupId',
+        loadComponent: () =>
+          import('./member/shop-detail/shop-detail').then((m) => m.ShopDetail),
+      },
+      {
         path: 'cart',
         loadComponent: () => import('./member/cart/cart').then((m) => m.Cart),
       },

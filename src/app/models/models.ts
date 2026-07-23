@@ -107,6 +107,8 @@ export interface Group {
   soldStakes?: number;
   remainingStakes?: number;
   priceTiers?: PriceTier[];
+  /** 買隊團：目前可買球隊的最低售價 */
+  minTeamPrice?: number;
   createdAt: string;
 }
 

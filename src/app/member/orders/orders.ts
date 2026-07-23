@@ -4,9 +4,11 @@ import { AuthService } from '../../services/auth.service';
 import { DataService } from '../../services/data.service';
 import { Order, ShippingMethod } from '../../models/models';
 import { TranslatePipe } from '../../services/translate.pipe';
+import { ImageLightbox } from '../../shared/image-lightbox/image-lightbox';
 
 @Component({
   selector: 'app-orders',
+  imports: [DatePipe, TranslatePipe, ImageLightbox],
   template: `
     <div class="flex-between mb">
       <h2>{{ 'orders.title' | t }}</h2>
@@ -52,7 +54,22 @@ import { TranslatePipe } from '../../services/translate.pipe';
                       <span class="text-muted">／{{ it.cardName }}{{ it.cardNo ? ' #' + it.cardNo : '' }}</span>
                     }
                   </td>
-                  <td><div class="thumb" [style.background]="it.groupPhoto">{{ it.cbz.slice(0, 5) }}</div></td>
+                  <td>
+                    <button
+                      type="button"
+                      class="thumb thumb-btn"
+                      [class.clickable]="!isColor(it.groupPhoto) && !!it.groupPhoto"
+                      [style.background]="isColor(it.groupPhoto) ? it.groupPhoto : null"
+                      [disabled]="isColor(it.groupPhoto) || !it.groupPhoto"
+                      (click)="openPhoto(it.groupPhoto)"
+                    >
+                      @if (!isColor(it.groupPhoto) && it.groupPhoto) {
+                        <img [src]="it.groupPhoto" alt="" />
+                      } @else {
+                        {{ it.cbz.slice(0, 5) }}
+                      }
+                    </button>
+                  </td>
                 </tr>
               }
             </tbody>
@@ -65,6 +82,8 @@ import { TranslatePipe } from '../../services/translate.pipe';
         </div>
       }
     }
+
+    <app-image-lightbox [url]="previewUrl()" (closed)="previewUrl.set(null)" />
   `,
   styles: [
     `
@@ -88,9 +107,36 @@ import { TranslatePipe } from '../../services/translate.pipe';
         color: var(--c-primary);
         font-size: 16px;
       }
+      .thumb {
+        overflow: hidden;
+      }
+      .thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        pointer-events: none;
+      }
+      button.thumb-btn {
+        border: none;
+        padding: 0;
+        font: inherit;
+        color: inherit;
+        cursor: default;
+        transition: transform 0.12s ease, box-shadow 0.12s ease;
+      }
+      button.thumb-btn.clickable {
+        cursor: pointer;
+      }
+      button.thumb-btn.clickable:hover {
+        transform: scale(1.06);
+        box-shadow: 0 0 0 2px var(--c-primary);
+      }
+      button.thumb-btn:disabled {
+        opacity: 1;
+      }
     `,
   ],
-  imports: [DatePipe, TranslatePipe],
 })
 export class Orders {
   private data = inject(DataService);
@@ -98,10 +144,20 @@ export class Orders {
   private memberId = this.auth.currentUser()!.id;
 
   tab = signal<'placed' | 'shipped'>('placed');
+  previewUrl = signal<string | null>(null);
 
   list = computed(() =>
     this.data.ordersOf(this.memberId).filter((o) => o.status === this.tab())
   );
+
+  isColor(value?: string): boolean {
+    return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value?.trim() ?? '');
+  }
+
+  openPhoto(photo?: string) {
+    if (!photo || this.isColor(photo)) return;
+    this.previewUrl.set(photo);
+  }
 
   methodName(m: ShippingMethod) {
     return { cvs: 'wh.cvs', mail: 'wh.mail', pickup: 'wh.pickup' }[m];
