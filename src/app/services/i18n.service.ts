@@ -9,6 +9,7 @@ type Dict = Record<string, { zh: string; en: string }>;
 const DICT: Dict = {
   // ---- 共用 ----
   'app.name': { zh: 'CardBeamz', en: 'CardBeamz' },
+  'app.title': { zh: 'CardBeamz｜卡牌倉儲與團務管理', en: 'CardBeamz | Card Storage & Group Management' },
   'common.login': { zh: '登入', en: 'Login' },
   'common.register': { zh: '加入會員', en: 'Join' },
   'common.logout': { zh: '登出', en: 'Logout' },
