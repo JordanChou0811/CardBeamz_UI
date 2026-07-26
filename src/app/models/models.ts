@@ -2,6 +2,7 @@ export type ItemStatus =
   | 'in_warehouse'
   | 'recycled'
   | 'exchanged'
+  | 'gift_pending'
   | 'ordered'
   | 'shipped';
 
@@ -150,6 +151,21 @@ export interface NewsItem {
   content: string;
   category: NewsCategory;
   createdAt: string;
+}
+
+export type GiftType = 'card' | 'credit';
+export type GiftStatus = 'pending' | 'accepted' | 'rejected';
+
+export interface GiftTransaction {
+  id: string;
+  type: GiftType;
+  senderMemberId: string;
+  recipientMemberId: string;
+  warehouseItemId?: string;
+  creditAmount?: number;
+  status: GiftStatus;
+  createdAt: string;
+  completedAt?: string;
 }
 
 export const SHIPPING_FEE: Record<ShippingMethod, number> = {

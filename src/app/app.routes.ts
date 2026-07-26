@@ -45,6 +45,10 @@ export const routes: Routes = [
         loadComponent: () => import('./member/credit/credit').then((m) => m.Credit),
       },
       {
+        path: 'gift',
+        loadComponent: () => import('./member/gift/gift').then((m) => m.Gift),
+      },
+      {
         path: 'change-password',
         loadComponent: () =>
           import('./member/change-password/change-password').then((m) => m.ChangePassword),

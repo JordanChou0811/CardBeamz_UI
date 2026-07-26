@@ -87,6 +87,20 @@ public final class ReturnCodes {
   /** 消息不存在 */
   public static final String NEWS_NOT_FOUND = "5001";
 
+  // ----- gift 6xxx -----
+  /** 不可贈與給自己 */
+  public static final String GIFT_SELF_FORBIDDEN = "6001";
+  /** 卡片不屬於送出者或狀態不可贈與 */
+  public static final String GIFT_CARD_UNAVAILABLE = "6002";
+  /** 團拆金金額不合法或餘額不足 */
+  public static final String GIFT_CREDIT_INVALID = "6003";
+  /** 贈與紀錄不存在 */
+  public static final String GIFT_NOT_FOUND = "6004";
+  /** 非受贈人不可處理 */
+  public static final String GIFT_RECIPIENT_FORBIDDEN = "6005";
+  /** 贈與已非待處理狀態 */
+  public static final String GIFT_NOT_PENDING = "6006";
+
   // ----- system 9xxx -----
   /** 參數驗證失敗 */
   public static final String SYSTEM_VALIDATION = "9001";

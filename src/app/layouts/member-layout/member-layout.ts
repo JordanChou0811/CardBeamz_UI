@@ -240,6 +240,7 @@ export class MemberLayout {
     { path: '/member/orders', label: 'nav.orders', icon: '🚚' },
     { path: '/member/recycled', label: 'nav.recycled', icon: '♻️' },
     { path: '/member/credit', label: 'nav.credit', icon: '💰' },
+    { path: '/member/gift', label: 'nav.gift', icon: '🎁' },
     { path: '/member/change-password', label: 'nav.changePwd', icon: '🔑' },
     { path: '/member/news', label: 'nav.news', icon: '🔔' },
   ];

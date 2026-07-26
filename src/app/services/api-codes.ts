@@ -80,6 +80,20 @@ export const ReturnCodes = {
   /** 消息不存在 */
   NEWS_NOT_FOUND: '5001',
 
+  // ----- gift 6xxx -----
+  /** 不可贈與給自己 */
+  GIFT_SELF_FORBIDDEN: '6001',
+  /** 卡片目前不可贈與 */
+  GIFT_CARD_UNAVAILABLE: '6002',
+  /** 贈與金額不合法或餘額不足 */
+  GIFT_CREDIT_INVALID: '6003',
+  /** 贈與紀錄不存在 */
+  GIFT_NOT_FOUND: '6004',
+  /** 非受贈人不可處理 */
+  GIFT_RECIPIENT_FORBIDDEN: '6005',
+  /** 贈與已非待處理狀態 */
+  GIFT_NOT_PENDING: '6006',
+
   // ----- system 9xxx -----
   /** 參數驗證失敗 */
   SYSTEM_VALIDATION: '9001',
@@ -131,6 +145,13 @@ export const RETURN_CODE_I18N: Record<string, string> = {
   [ReturnCodes.TEAM_SOLD]: 'api.err.4209',
   // news
   [ReturnCodes.NEWS_NOT_FOUND]: 'api.err.5001',
+  // gift
+  [ReturnCodes.GIFT_SELF_FORBIDDEN]: 'api.err.6001',
+  [ReturnCodes.GIFT_CARD_UNAVAILABLE]: 'api.err.6002',
+  [ReturnCodes.GIFT_CREDIT_INVALID]: 'api.err.6003',
+  [ReturnCodes.GIFT_NOT_FOUND]: 'api.err.6004',
+  [ReturnCodes.GIFT_RECIPIENT_FORBIDDEN]: 'api.err.6005',
+  [ReturnCodes.GIFT_NOT_PENDING]: 'api.err.6006',
   // system
   [ReturnCodes.SYSTEM_VALIDATION]: 'api.err.9001',
   [ReturnCodes.CLOUDINARY_NOT_CONFIGURED]: 'api.err.9101',

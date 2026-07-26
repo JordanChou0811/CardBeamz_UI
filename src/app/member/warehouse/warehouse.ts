@@ -29,7 +29,17 @@ import {
 
     <!-- 第一頁：倉庫一覽 -->
     @if (step() === 1) {
-      <div class="card">
+      <div class="warehouse-tabs">
+        <button class="tab" [class.active]="warehouseTab() === 'available'" (click)="warehouseTab.set('available')">
+          📦 {{ 'wh.availableTab' | t }}
+        </button>
+        <button class="tab" [class.active]="warehouseTab() === 'pending'" (click)="warehouseTab.set('pending')">
+          🎁 {{ 'wh.pendingGiftTab' | t }} @if (pendingItems().length) { ({{ pendingItems().length }}) }
+        </button>
+      </div>
+
+      @if (warehouseTab() === 'available') {
+        <div class="card">
         @if (items().length === 0) {
           <div class="empty">
             <span class="emoji">📦</span>
@@ -102,7 +112,57 @@ import {
             </button>
           </div>
         }
-      </div>
+        </div>
+      } @else {
+        <div class="card">
+          @if (pendingItems().length === 0) {
+            <div class="empty">
+              <span class="emoji">🎁</span>
+              {{ 'wh.emptyPendingGift' | t }}
+            </div>
+          } @else {
+            <p class="text-muted pending-note">{{ 'wh.pendingGiftNote' | t }}</p>
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>{{ 'common.group' | t }}</th>
+                  <th>{{ 'common.groupPhoto' | t }}</th>
+                  <th>{{ 'wh.pendingStatus' | t }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (it of pendingItems(); track it.id) {
+                  <tr>
+                    <td>
+                      <b>{{ it.cbz }}</b>
+                      @if (it.cardName || it.cardNo) {
+                        <div class="text-muted card-id">{{ it.cardName }}{{ it.cardNo ? ' #' + it.cardNo : '' }}</div>
+                      }
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        class="thumb thumb-btn"
+                        [class.clickable]="!isColor(it.groupPhoto) && !!it.groupPhoto"
+                        [style.background]="isColor(it.groupPhoto) ? it.groupPhoto : null"
+                        [disabled]="isColor(it.groupPhoto) || !it.groupPhoto"
+                        (click)="openPhoto(it.groupPhoto)"
+                      >
+                        @if (!isColor(it.groupPhoto) && it.groupPhoto) {
+                          <img [src]="it.groupPhoto" alt="" />
+                        } @else {
+                          {{ it.cbz.slice(0, 5) }}
+                        }
+                      </button>
+                    </td>
+                    <td><span class="pending-badge">{{ 'wh.waitingRecipient' | t }}</span></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+        </div>
+      }
     }
 
     <!-- 第二頁：寄送方式 -->
@@ -253,6 +313,37 @@ import {
         height: 2px;
         background: var(--c-border);
       }
+      .warehouse-tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 14px;
+      }
+      .tab {
+        border: 1px solid var(--c-border);
+        background: var(--c-surface);
+        border-radius: var(--radius-sm);
+        padding: 9px 13px;
+        cursor: pointer;
+        color: var(--c-muted);
+        font-weight: 700;
+      }
+      .tab.active {
+        background: var(--c-primary-light);
+        border-color: var(--c-primary);
+        color: var(--c-primary-dark);
+      }
+      .pending-note {
+        margin: 0 0 14px;
+      }
+      .pending-badge {
+        display: inline-block;
+        padding: 5px 9px;
+        border-radius: 999px;
+        background: var(--c-primary-light);
+        color: var(--c-primary-dark);
+        font-size: 13px;
+        font-weight: 700;
+      }
       td .btn {
         margin-right: 6px;
       }
@@ -327,6 +418,7 @@ export class Warehouse {
   private memberId = this.auth.currentUser()!.id;
 
   step = signal(1);
+  warehouseTab = signal<'available' | 'pending'>('available');
   selected = signal<Set<string>>(new Set());
   recycleItem = signal<WarehouseItem | null>(null);
   exchangeItem = signal<WarehouseItem | null>(null);
@@ -340,6 +432,10 @@ export class Warehouse {
   items = computed(() => {
     this.data.items();
     return this.data.warehouseItems(this.memberId);
+  });
+  pendingItems = computed(() => {
+    this.data.items();
+    return this.data.itemsOf(this.memberId).filter((item) => item.status === 'gift_pending');
   });
 
   total = computed(() => SHIPPING_FEE[this.method()]);

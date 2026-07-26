@@ -1,6 +1,7 @@
 import { Injectable, Injector, signal } from '@angular/core';
 import {
   CartLine,
+  GiftTransaction,
   Group,
   GroupCard,
   Member,
@@ -23,6 +24,7 @@ const KEYS = {
   news: 'cbz_news',
   groups: 'cbz_groups',
   groupCards: 'cbz_group_cards',
+  gifts: 'cbz_gifts',
   cart: 'cbz_cart',
   seq: 'cbz_member_seq',
 };
@@ -60,6 +62,7 @@ export class DataService {
   readonly cartLines = signal<CartLine[]>([]);
   readonly cartGrandSubtotal = signal(0);
   readonly cartMaxCredit = signal(0);
+  readonly receivedGifts = signal<GiftTransaction[]>([]);
   readonly ready = signal(false);
   readonly loadError = signal('');
 
@@ -77,6 +80,7 @@ export class DataService {
       this.news.set(load(KEYS.news, []));
       this.groups.set(load(KEYS.groups, []));
       this.groupCards.set([]);
+      this.receivedGifts.set([]);
       this.ready.set(true);
     }
   }
@@ -153,6 +157,23 @@ export class DataService {
     if (!environment.useApi) return;
     const res = await this.api.get<{ groups: Group[] }>('group', 'list');
     this.groups.set(res.data.groups ?? []);
+  }
+
+  async refreshReceivedGifts(memberId: string): Promise<void> {
+    if (!memberId) {
+      this.receivedGifts.set([]);
+      return;
+    }
+    if (!environment.useApi) {
+      this.receivedGifts.set(
+        load<GiftTransaction[]>(KEYS.gifts, []).filter((gift) => gift.recipientMemberId === memberId)
+      );
+      return;
+    }
+    const res = await this.api.get<{ transactions: GiftTransaction[] }>('gift', 'list-received', {
+      memberId,
+    });
+    this.receivedGifts.set(res.data.transactions ?? []);
   }
 
   // ========== 共用查詢 ==========
@@ -374,6 +395,132 @@ export class DataService {
     await this.refreshItems();
     await this.auth().refreshMe();
     await this.refreshMembers();
+  }
+
+  async giftCard(senderMemberId: string, recipientAccount: string, itemId: string): Promise<void> {
+    if (!environment.useApi) {
+      const recipient = this.findByAccount(recipientAccount);
+      const item = this.items().find((candidate) => candidate.id === itemId);
+      if (!recipient) throw new Error('查無此會員電話號碼');
+      if (recipient.id === senderMemberId) throw new Error('不可贈與給自己');
+      if (!item || item.memberId !== senderMemberId || item.status !== 'in_warehouse') {
+        throw new Error('此卡片目前不可贈與');
+      }
+      const now = new Date().toISOString();
+      this.items.update((items) =>
+        items.map((candidate) =>
+          candidate.id === itemId ? { ...candidate, status: 'gift_pending', updatedAt: now } : candidate
+        )
+      );
+      save(KEYS.items, this.items());
+      const gifts = load<GiftTransaction[]>(KEYS.gifts, []);
+      save(KEYS.gifts, [
+        {
+          id: newId('GIFT'),
+          type: 'card',
+          senderMemberId,
+          recipientMemberId: recipient.id,
+          warehouseItemId: itemId,
+          status: 'pending',
+          createdAt: now,
+        },
+        ...gifts,
+      ]);
+      return;
+    }
+    await this.api.post('gift', 'card', { senderMemberId, recipientAccount, itemId });
+    await this.refreshItems();
+  }
+
+  async giftCredit(senderMemberId: string, recipientAccount: string, amount: number): Promise<void> {
+    if (!environment.useApi) {
+      const sender = this.findMember(senderMemberId);
+      const recipient = this.findByAccount(recipientAccount);
+      if (!recipient) throw new Error('查無此會員電話號碼');
+      if (recipient.id === senderMemberId) throw new Error('不可贈與給自己');
+      if (!Number.isInteger(amount) || amount <= 0 || !sender || amount > sender.credit) {
+        throw new Error('贈與金額不可超過目前餘額');
+      }
+      this.patchMemberLocal(sender.id, { credit: sender.credit - amount });
+      this.auth().patchCurrentUser({ credit: sender.credit - amount });
+      const gifts = load<GiftTransaction[]>(KEYS.gifts, []);
+      save(KEYS.gifts, [
+        {
+          id: newId('GIFT'),
+          type: 'credit',
+          senderMemberId,
+          recipientMemberId: recipient.id,
+          creditAmount: amount,
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+        },
+        ...gifts,
+      ]);
+      return;
+    }
+    await this.api.post('gift', 'credit', { senderMemberId, recipientAccount, amount });
+    await this.auth().refreshMe(senderMemberId);
+    await this.refreshMembers();
+  }
+
+  async acceptGift(recipientMemberId: string, giftId: string): Promise<void> {
+    if (!environment.useApi) {
+      const gifts = load<GiftTransaction[]>(KEYS.gifts, []);
+      const gift = gifts.find((candidate) => candidate.id === giftId);
+      if (!gift || gift.recipientMemberId !== recipientMemberId || gift.status !== 'pending') {
+        throw new Error('此贈與目前無法處理');
+      }
+      const now = new Date().toISOString();
+      if (gift.type === 'card') {
+        this.items.update((items) =>
+          items.map((item) =>
+            item.id === gift.warehouseItemId
+              ? { ...item, memberId: recipientMemberId, status: 'in_warehouse', updatedAt: now }
+              : item
+          )
+        );
+        save(KEYS.items, this.items());
+      } else {
+        const recipient = this.findMember(recipientMemberId);
+        if (recipient) this.patchMemberLocal(recipient.id, { credit: recipient.credit + (gift.creditAmount ?? 0) });
+        this.auth().patchCurrentUser({ credit: (recipient?.credit ?? 0) + (gift.creditAmount ?? 0) });
+      }
+      save(KEYS.gifts, gifts.map((candidate) => (candidate.id === giftId ? { ...candidate, status: 'accepted', completedAt: now } : candidate)));
+      await this.refreshReceivedGifts(recipientMemberId);
+      return;
+    }
+    await this.api.post('gift', 'accept', { recipientMemberId, giftId });
+    await Promise.all([this.refreshReceivedGifts(recipientMemberId), this.refreshItems(), this.refreshMembers()]);
+    await this.auth().refreshMe(recipientMemberId);
+  }
+
+  async rejectGift(recipientMemberId: string, giftId: string): Promise<void> {
+    if (!environment.useApi) {
+      const gifts = load<GiftTransaction[]>(KEYS.gifts, []);
+      const gift = gifts.find((candidate) => candidate.id === giftId);
+      if (!gift || gift.recipientMemberId !== recipientMemberId || gift.status !== 'pending') {
+        throw new Error('此贈與目前無法處理');
+      }
+      const now = new Date().toISOString();
+      if (gift.type === 'card') {
+        this.items.update((items) =>
+          items.map((item) =>
+            item.id === gift.warehouseItemId
+              ? { ...item, status: 'in_warehouse', updatedAt: now }
+              : item
+          )
+        );
+        save(KEYS.items, this.items());
+      } else {
+        const sender = this.findMember(gift.senderMemberId);
+        if (sender) this.patchMemberLocal(sender.id, { credit: sender.credit + (gift.creditAmount ?? 0) });
+      }
+      save(KEYS.gifts, gifts.map((candidate) => (candidate.id === giftId ? { ...candidate, status: 'rejected', completedAt: now } : candidate)));
+      await this.refreshReceivedGifts(recipientMemberId);
+      return;
+    }
+    await this.api.post('gift', 'reject', { recipientMemberId, giftId });
+    await Promise.all([this.refreshReceivedGifts(recipientMemberId), this.refreshItems(), this.refreshMembers()]);
   }
 
   async checkout(memberId: string, itemIds: string[], shipping: ShippingInfo): Promise<Order> {
