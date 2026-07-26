@@ -2,6 +2,7 @@ package com.cardbeamz.group;
 
 import com.cardbeamz.common.ApiResponse;
 import java.util.Map;
+import java.util.List;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,6 +35,20 @@ public class GroupCardController {
             req.getGroupId(), req.getCardName(), req.getCardNo(), req.getPhoto(), req.getExchangeValue()));
   }
 
+  @PostMapping("/create-batch")
+  public ApiResponse<Map<String, Object>> createBatch(@RequestBody BatchCreateRequest req) {
+    return ApiResponse.ok(
+        "group-card",
+        "create-batch",
+        "批次匯入卡片",
+        "已匯入",
+        groupCardService.createBatch(
+            req.getGroupId(),
+            (req.getCards() == null ? List.<BatchCardRequest>of() : req.getCards()).stream()
+                .map(card -> new GroupCardService.CardInput(card.getCardName(), card.getCardNo(), card.getExchangeValue()))
+                .toList()));
+  }
+
   @PostMapping("/update")
   public ApiResponse<Map<String, Object>> update(@RequestBody UpdateRequest req) {
     return ApiResponse.ok(
@@ -55,6 +70,19 @@ public class GroupCardController {
     private String cardName;
     private String cardNo;
     private String photo;
+    private Integer exchangeValue;
+  }
+
+  @Data
+  public static class BatchCreateRequest {
+    private String groupId;
+    private List<BatchCardRequest> cards;
+  }
+
+  @Data
+  public static class BatchCardRequest {
+    private String cardName;
+    private String cardNo;
     private Integer exchangeValue;
   }
 

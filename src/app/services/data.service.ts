@@ -1004,6 +1004,35 @@ export class DataService {
     await this.refreshGroupCards(groupId);
   }
 
+  async addGroupCardsBatch(
+    groupId: string,
+    cards: { cardName?: string; cardNo?: string; exchangeValue: number }[]
+  ): Promise<number> {
+    if (!environment.useApi) {
+      const group = this.groups().find((g) => g.id === groupId);
+      const now = new Date().toISOString();
+      const created = cards.map((card) => ({
+        id: newId('GCARD'),
+        groupId,
+        cardName: card.cardName?.trim() || undefined,
+        cardNo: card.cardNo?.trim() || undefined,
+        photo: group?.photo || '#6366f1',
+        exchangeValue: card.exchangeValue,
+        createdAt: now,
+      }));
+      const all = [...created, ...load<GroupCard[]>(KEYS.groupCards, [])];
+      save(KEYS.groupCards, all);
+      this.groupCards.set(all.filter((card) => card.groupId === groupId));
+      return created.length;
+    }
+    const res = await this.api.post<{ createdCount: number }>('group-card', 'create-batch', {
+      groupId,
+      cards,
+    });
+    await this.refreshGroupCards(groupId);
+    return res.data.createdCount ?? cards.length;
+  }
+
   async updateGroupCard(
     id: string,
     groupId: string,

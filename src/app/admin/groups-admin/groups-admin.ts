@@ -8,9 +8,17 @@ import { AlertService } from '../../services/alert.service';
 import { ConfirmService } from '../../services/confirm.service';
 import { ImageLightbox } from '../../shared/image-lightbox/image-lightbox';
 import { Pagination } from '../../shared/pagination/pagination';
+import * as XLSX from 'xlsx';
 
 function isTeamSale(type?: string): boolean {
   return type === 'bball_team' || type === 'baseball_team';
+}
+
+interface BatchCard {
+  cardName: string;
+  cardNo: string;
+  exchangeValue: number;
+  row: number;
 }
 
 @Component({
@@ -108,17 +116,45 @@ function isTeamSale(type?: string): boolean {
           <div class="list-head">
             <div class="card-title" style="margin: 0">{{ 'groups.cardsTitle' | t }}</div>
             @if (!isTeamSale(mg.type)) {
-              <button
-                type="button"
-                class="btn btn-primary btn-icon"
-                [attr.data-tip]="'groups.addCard' | t"
-                [attr.aria-label]="'groups.addCard' | t"
-                (click)="openAddCard()"
-              >
-                +
-              </button>
+              <div class="actions">
+                <button type="button" class="btn btn-outline btn-sm" (click)="downloadCardTemplate()">
+                  ⬇️ 下載範例
+                </button>
+                <label class="btn btn-outline btn-sm file-btn">
+                  ⬆️ Excel 匯入
+                  <input type="file" accept=".xlsx,.xls,.csv" (change)="readCardImport($event)" />
+                </label>
+                <button
+                  type="button"
+                  class="btn btn-primary btn-icon"
+                  [attr.data-tip]="'groups.addCard' | t"
+                  [attr.aria-label]="'groups.addCard' | t"
+                  (click)="openAddCard()"
+                >
+                  +
+                </button>
+              </div>
             }
           </div>
+          @if (batchCards().length || batchImportErrors().length) {
+            <div class="batch-import">
+              <div>
+                <b>Excel 匯入預覽</b>：{{ batchCards().length }} 張卡片
+                <span class="text-muted">（圖片將先使用團封面，可於匯入後逐張更新）</span>
+              </div>
+              @if (batchImportErrors().length) {
+                <div class="error-text">
+                  @for (error of batchImportErrors(); track error) { <div>{{ error }}</div> }
+                </div>
+              }
+              <div class="actions">
+                <button type="button" class="btn btn-outline btn-sm" (click)="clearCardImport()">取消</button>
+                <button type="button" class="btn btn-primary btn-sm" [disabled]="batchImportErrors().length > 0 || batchSubmitting()" (click)="importCards()">
+                  {{ batchSubmitting() ? '匯入中…' : '確認匯入' }}
+                </button>
+              </div>
+            </div>
+          }
           @if (data.groupCards().length === 0) {
             <div class="empty"><span class="emoji">🃏</span>{{ 'groups.cardsEmpty' | t }}</div>
           } @else {
@@ -642,10 +678,42 @@ function isTeamSale(type?: string): boolean {
         color: var(--c-primary);
       }
       .actions {
+        white-space: nowrap;
+      }
+      .list-head .actions,
+      .batch-import .actions {
         display: flex;
         align-items: center;
         gap: 6px;
-        white-space: nowrap;
+      }
+      td.actions > .btn + .btn {
+        margin-left: 6px;
+      }
+      .file-btn {
+        position: relative;
+        cursor: pointer;
+      }
+      .file-btn input {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        opacity: 0;
+        cursor: pointer;
+      }
+      .batch-import {
+        margin: -4px 0 14px;
+        padding: 12px;
+        border: 1px solid var(--c-border);
+        border-radius: 10px;
+        background: var(--c-surface-2);
+      }
+      .batch-import .actions {
+        margin-top: 10px;
+      }
+      .error-text {
+        margin-top: 8px;
+        color: var(--c-danger);
+        font-size: 13px;
       }
       .btn-icon {
         width: 34px;
@@ -828,6 +896,9 @@ export class GroupsAdmin {
   folderNextCursor = signal<string | undefined>(undefined);
   folderLoading = signal(false);
   previewUrl = signal<string | null>(null);
+  batchCards = signal<BatchCard[]>([]);
+  batchImportErrors = signal<string[]>([]);
+  batchSubmitting = signal(false);
   groupPage = this.data.groupPage;
 
   constructor() {
@@ -850,6 +921,93 @@ export class GroupsAdmin {
   openPhoto(photo?: string): void {
     if (!photo || this.isColor(photo)) return;
     this.previewUrl.set(photo);
+  }
+
+  downloadCardTemplate(): void {
+    const sheet = XLSX.utils.json_to_sheet([
+      { 卡片名稱: 'Luka Doncic', 卡號: '001', 團拆金價值: 50 },
+      { 卡片名稱: 'LeBron James', 卡號: '002', 團拆金價值: 80 },
+    ]);
+    sheet['!cols'] = [{ wch: 24 }, { wch: 14 }, { wch: 16 }];
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, sheet, '卡片清單');
+    XLSX.writeFileXLSX(workbook, 'CardBeamz_卡片匯入範例.xlsx');
+  }
+
+  readCardImport(event: Event): void {
+    const group = this.managingGroup();
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!group || !file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const workbook = XLSX.read(reader.result, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '', raw: false });
+        const imported: BatchCard[] = [];
+        const errors: string[] = [];
+        const keys = new Set(
+          this.data.groupCards().map((card) => this.cardKey(card.cardName ?? '', card.cardNo ?? ''))
+        );
+        rows.forEach((row, index) => {
+          const cardName = String(row['卡片名稱'] ?? row['cardName'] ?? '').trim();
+          const cardNo = String(row['卡號'] ?? row['cardNo'] ?? '').trim();
+          const rawValue = String(row['團拆金價值'] ?? row['exchangeValue'] ?? '').trim();
+          const exchangeValue = rawValue === '' ? 0 : Number(rawValue);
+          const line = index + 2;
+          if (!cardName && !cardNo) {
+            errors.push(`第 ${line} 列：卡片名稱或卡號至少要填一項`);
+            return;
+          }
+          if (!Number.isInteger(exchangeValue) || exchangeValue < 0) {
+            errors.push(`第 ${line} 列：團拆金價值須為 0 以上的整數`);
+            return;
+          }
+          const key = this.cardKey(cardName, cardNo);
+          if (keys.has(key)) {
+            errors.push(`第 ${line} 列：卡片名稱與卡號重複`);
+            return;
+          }
+          keys.add(key);
+          imported.push({ cardName, cardNo, exchangeValue, row: line });
+        });
+        if (rows.length === 0) errors.push('Excel 沒有可讀取的資料列');
+        this.batchCards.set(imported);
+        this.batchImportErrors.set(errors);
+      } catch {
+        this.batchCards.set([]);
+        this.batchImportErrors.set(['無法讀取檔案，請使用下載的 Excel 範例格式']);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  clearCardImport(): void {
+    this.batchCards.set([]);
+    this.batchImportErrors.set([]);
+  }
+
+  async importCards(): Promise<void> {
+    const group = this.managingGroup();
+    const cards = this.batchCards();
+    if (!group || !cards.length || this.batchImportErrors().length) return;
+    this.batchSubmitting.set(true);
+    try {
+      await this.data.addGroupCardsBatch(
+        group.id,
+        cards.map(({ cardName, cardNo, exchangeValue }) => ({ cardName, cardNo, exchangeValue }))
+      );
+      this.clearCardImport();
+    } finally {
+      this.batchSubmitting.set(false);
+    }
+  }
+
+  private cardKey(cardName: string, cardNo: string): string {
+    return `${cardName.trim().toLowerCase()}\u0000${cardNo.trim().toLowerCase()}`;
   }
 
   openPicker() {
@@ -1093,6 +1251,7 @@ export class GroupsAdmin {
     this.editTeamSlots.set([]);
     this.bulkTeamPrice = null;
     this.originalTeamPricesJson = '[]';
+    this.clearCardImport();
   }
 
   openAddCard() {
