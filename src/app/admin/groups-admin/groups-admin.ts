@@ -7,6 +7,7 @@ import { TranslatePipe } from '../../services/translate.pipe';
 import { AlertService } from '../../services/alert.service';
 import { ConfirmService } from '../../services/confirm.service';
 import { ImageLightbox } from '../../shared/image-lightbox/image-lightbox';
+import { Pagination } from '../../shared/pagination/pagination';
 
 function isTeamSale(type?: string): boolean {
   return type === 'bball_team' || type === 'baseball_team';
@@ -14,7 +15,7 @@ function isTeamSale(type?: string): boolean {
 
 @Component({
   selector: 'app-groups-admin',
-  imports: [FormsModule, TranslatePipe, ImageLightbox],
+  imports: [FormsModule, TranslatePipe, ImageLightbox, Pagination],
   template: `
     <h2 class="mb">🎴 {{ 'groups.title' | t }}</h2>
 
@@ -199,7 +200,7 @@ function isTeamSale(type?: string): boolean {
             +
           </button>
         </div>
-        @if (data.groups().length === 0) {
+        @if (groupPage().groups.length === 0) {
           <div class="empty"><span class="emoji">🎴</span>{{ 'groups.empty' | t }}</div>
         } @else {
           <table class="table">
@@ -214,7 +215,7 @@ function isTeamSale(type?: string): boolean {
               </tr>
             </thead>
             <tbody>
-              @for (g of data.groups(); track g.id) {
+              @for (g of groupPage().groups; track g.id) {
                 <tr>
                   <td>
                     <button
@@ -301,6 +302,13 @@ function isTeamSale(type?: string): boolean {
               }
             </tbody>
           </table>
+          <app-pagination
+            [totalCount]="groupPage().totalCount"
+            [pageNum]="groupPage().pageNum"
+            [pageSize]="groupPage().pageSize"
+            (pageChange)="loadGroupPage($event, groupPage().pageSize)"
+            (pageSizeChange)="loadGroupPage(1, $event)"
+          />
         }
       </div>
     }
@@ -820,9 +828,15 @@ export class GroupsAdmin {
   folderNextCursor = signal<string | undefined>(undefined);
   folderLoading = signal(false);
   previewUrl = signal<string | null>(null);
+  groupPage = this.data.groupPage;
 
   constructor() {
     void this.data.refreshGroups();
+    this.loadGroupPage();
+  }
+
+  loadGroupPage(pageNum = 1, pageSize = 10): void {
+    void this.data.refreshGroupPage(pageNum, pageSize);
   }
 
   selectedCardPreview(g: Group): string {
@@ -993,6 +1007,7 @@ export class GroupsAdmin {
         }
       }
       this.closeGroupForm();
+      this.loadGroupPage(this.groupPage().pageNum, this.groupPage().pageSize);
     } catch {
       // API 錯誤已由 TelegramService 跳窗
     }
@@ -1037,6 +1052,7 @@ export class GroupsAdmin {
     if (!ok) return;
     try {
       await this.data.publishGroup(g.id);
+      this.loadGroupPage(this.groupPage().pageNum, this.groupPage().pageSize);
     } catch {
       // API 錯誤已由 TelegramService 跳窗
     }
@@ -1051,6 +1067,7 @@ export class GroupsAdmin {
     if (!ok) return;
     try {
       await this.data.unlistGroup(g.id);
+      this.loadGroupPage(this.groupPage().pageNum, this.groupPage().pageSize);
     } catch {
       // API 錯誤已由 TelegramService 跳窗
     }
@@ -1178,6 +1195,7 @@ export class GroupsAdmin {
     });
     if (!ok) return;
     await this.data.deleteGroup(g.id);
+    this.loadGroupPage(this.groupPage().pageNum, this.groupPage().pageSize);
   }
 
   async removeCard(id: string) {

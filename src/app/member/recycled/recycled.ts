@@ -3,10 +3,11 @@ import { AuthService } from '../../services/auth.service';
 import { DataService } from '../../services/data.service';
 import { TranslatePipe } from '../../services/translate.pipe';
 import { ImageLightbox } from '../../shared/image-lightbox/image-lightbox';
+import { Pagination } from '../../shared/pagination/pagination';
 
 @Component({
   selector: 'app-recycled',
-  imports: [TranslatePipe, ImageLightbox],
+  imports: [TranslatePipe, ImageLightbox, Pagination],
   template: `
     <h2 class="mb">{{ 'recycled.title' | t }}</h2>
 
@@ -24,7 +25,7 @@ import { ImageLightbox } from '../../shared/image-lightbox/image-lightbox';
             </tr>
           </thead>
           <tbody>
-            @for (it of recycled(); track it.id) {
+            @for (it of recycledPageItems(); track it.id) {
               <tr>
                 <td>
                   {{ it.cbz }}
@@ -55,6 +56,13 @@ import { ImageLightbox } from '../../shared/image-lightbox/image-lightbox';
             }
           </tbody>
         </table>
+        <app-pagination
+          [totalCount]="recycled().length"
+          [pageNum]="recycledPageNum()"
+          [pageSize]="recycledPageSize()"
+          (pageChange)="recycledPageNum.set($event)"
+          (pageSizeChange)="setRecycledPageSize($event)"
+        />
       }
     </div>
 
@@ -72,7 +80,7 @@ import { ImageLightbox } from '../../shared/image-lightbox/image-lightbox';
             </tr>
           </thead>
           <tbody>
-            @for (it of exchanged(); track it.id) {
+            @for (it of exchangedPageItems(); track it.id) {
               <tr>
                 <td>
                   {{ it.cbz }}
@@ -107,6 +115,13 @@ import { ImageLightbox } from '../../shared/image-lightbox/image-lightbox';
             }
           </tbody>
         </table>
+        <app-pagination
+          [totalCount]="exchanged().length"
+          [pageNum]="exchangedPageNum()"
+          [pageSize]="exchangedPageSize()"
+          (pageChange)="exchangedPageNum.set($event)"
+          (pageSizeChange)="setExchangedPageSize($event)"
+        />
       }
     </div>
 
@@ -154,6 +169,10 @@ export class Recycled {
   private memberId = this.auth.currentUser()!.id;
 
   previewUrl = signal<string | null>(null);
+  recycledPageNum = signal(1);
+  recycledPageSize = signal(10);
+  exchangedPageNum = signal(1);
+  exchangedPageSize = signal(10);
 
   recycled = computed(() =>
     this.data.items().filter((i) => i.memberId === this.memberId && i.status === 'recycled')
@@ -161,6 +180,24 @@ export class Recycled {
   exchanged = computed(() =>
     this.data.items().filter((i) => i.memberId === this.memberId && i.status === 'exchanged')
   );
+  recycledPageItems = computed(() => {
+    const start = (this.recycledPageNum() - 1) * this.recycledPageSize();
+    return this.recycled().slice(start, start + this.recycledPageSize());
+  });
+  exchangedPageItems = computed(() => {
+    const start = (this.exchangedPageNum() - 1) * this.exchangedPageSize();
+    return this.exchanged().slice(start, start + this.exchangedPageSize());
+  });
+
+  setRecycledPageSize(pageSize: number): void {
+    this.recycledPageSize.set(pageSize);
+    this.recycledPageNum.set(1);
+  }
+
+  setExchangedPageSize(pageSize: number): void {
+    this.exchangedPageSize.set(pageSize);
+    this.exchangedPageNum.set(1);
+  }
 
   isColor(value?: string): boolean {
     return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value?.trim() ?? '');

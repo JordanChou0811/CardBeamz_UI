@@ -6,10 +6,11 @@ import { Group, GroupCard, WarehouseItem } from '../../models/models';
 import { TranslatePipe } from '../../services/translate.pipe';
 import { AlertService } from '../../services/alert.service';
 import { ConfirmService } from '../../services/confirm.service';
+import { Pagination } from '../../shared/pagination/pagination';
 
 @Component({
   selector: 'app-items-admin',
-  imports: [DatePipe, FormsModule, TranslatePipe],
+  imports: [DatePipe, FormsModule, TranslatePipe, Pagination],
   template: `
     <h2 class="mb">🃏 {{ 'aitems.title' | t }}</h2>
 
@@ -141,6 +142,13 @@ import { ConfirmService } from '../../services/confirm.service';
               }
             </tbody>
           </table>
+          <app-pagination
+            [totalCount]="itemPage().totalCount"
+            [pageNum]="itemPage().pageNum"
+            [pageSize]="itemPage().pageSize"
+            (pageChange)="loadItemPage($event, itemPage().pageSize)"
+            (pageSizeChange)="loadItemPage(1, $event)"
+          />
         }
       </div>
     </div>
@@ -237,6 +245,7 @@ export class ItemsAdmin {
   quantity = 1;
 
   success = signal(0);
+  itemPage = this.data.itemPage;
 
   memberOptions = computed(() => this.data.members().filter((m) => m.role === 'member'));
 
@@ -249,15 +258,19 @@ export class ItemsAdmin {
   );
 
   warehouseItems = computed<WarehouseItem[]>(() =>
-    this.data.items().filter((i) => i.status === 'in_warehouse')
+    this.itemPage().items
   );
 
   constructor() {
     void Promise.all([
       this.data.refreshMembers(),
       this.data.refreshGroups(),
-      this.data.refreshItems(undefined, 'in_warehouse'),
     ]);
+    this.loadItemPage();
+  }
+
+  loadItemPage(pageNum = 1, pageSize = 10): void {
+    void this.data.refreshItemPage(undefined, 'in_warehouse', pageNum, pageSize);
   }
 
   isColor(value: string): boolean {
@@ -295,6 +308,7 @@ export class ItemsAdmin {
       this.success.set(created.length);
       this.groupCardId = '';
       this.quantity = 1;
+      this.loadItemPage(this.itemPage().pageNum, this.itemPage().pageSize);
     } catch {
       // API 錯誤已由 TelegramService 跳窗
     }
@@ -309,5 +323,6 @@ export class ItemsAdmin {
     });
     if (!ok) return;
     await this.data.removeItem(it.id);
+    this.loadItemPage(this.itemPage().pageNum, this.itemPage().pageSize);
   }
 }

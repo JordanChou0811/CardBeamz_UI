@@ -26,6 +26,19 @@ public class WarehouseController {
     return ApiResponse.ok("warehouse", "list", "倉庫一覽", warehouseService.list(memberId, status));
   }
 
+  @GetMapping("/list-page")
+  public ApiResponse<Map<String, Object>> listPage(
+      @RequestParam(required = false) String memberId,
+      @RequestParam(required = false) String status,
+      @RequestParam(defaultValue = "1") int pageNum,
+      @RequestParam(defaultValue = "10") int pageSize) {
+    return ApiResponse.ok(
+        "warehouse",
+        "list-page",
+        "倉庫分頁列表",
+        warehouseService.listPage(memberId, status, pageNum, pageSize));
+  }
+
   @PostMapping("/recycle")
   public ApiResponse<Map<String, Object>> recycle(@RequestBody ItemRequest req) {
     return ApiResponse.ok("warehouse", "recycle", "回收", warehouseService.recycle(req.getItemId()));

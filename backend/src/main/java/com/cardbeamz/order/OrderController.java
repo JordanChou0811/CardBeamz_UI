@@ -28,6 +28,16 @@ public class OrderController {
     return ApiResponse.ok("order", "list-shipped", "已寄出查詢", orderService.listByStatus("shipped", memberId));
   }
 
+  @GetMapping("/list-page")
+  public ApiResponse<Map<String, Object>> listPage(
+      @RequestParam String status,
+      @RequestParam(required = false) String memberId,
+      @RequestParam(defaultValue = "1") int pageNum,
+      @RequestParam(defaultValue = "10") int pageSize) {
+    return ApiResponse.ok(
+        "order", "list-page", "寄送訂單查詢", orderService.listPage(status, memberId, pageNum, pageSize));
+  }
+
   @PostMapping("/ship")
   public ApiResponse<Map<String, Object>> ship(@RequestBody ShipRequest req) {
     return ApiResponse.ok("order", "ship", "出貨", "已出貨", orderService.ship(req.getOrderId()));

@@ -9,6 +9,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +33,22 @@ public class GroupService {
     Map<String, Object> data = new HashMap<>();
     data.put("total", groups.size());
     data.put("groups", groups.stream().map(this::toView).toList());
+    return data;
+  }
+
+  @Transactional(readOnly = true)
+  public Map<String, Object> listPage(int pageNum, int pageSize) {
+    int safeSize = pageSize == 20 || pageSize == 50 ? pageSize : 10;
+    int safePage = Math.max(1, pageNum);
+    Page<GroupEntity> page =
+        groupRepository.findAll(
+            PageRequest.of(safePage - 1, safeSize, Sort.by(Sort.Direction.DESC, "createdAt")));
+    Map<String, Object> data = new HashMap<>();
+    data.put("groups", page.getContent().stream().map(this::toView).toList());
+    data.put("pageNum", safePage);
+    data.put("pageSize", safeSize);
+    data.put("totalCount", page.getTotalElements());
+    data.put("totalPages", page.getTotalPages());
     return data;
   }
 

@@ -10,6 +10,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +33,27 @@ public class OrderService {
     Map<String, Object> data = new HashMap<>();
     data.put("total", mapped.size());
     data.put("orders", mapped);
+    return data;
+  }
+
+  @Transactional(readOnly = true)
+  public Map<String, Object> listPage(String status, String memberId, int pageNum, int pageSize) {
+    int safeSize = pageSize == 20 || pageSize == 50 ? pageSize : 10;
+    int safePage = Math.max(1, pageNum);
+    Page<OrderEntity> page =
+        memberId == null || memberId.isBlank()
+            ? orderRepository.findByStatus(
+                status, PageRequest.of(safePage - 1, safeSize, Sort.by(Sort.Direction.DESC, "createdAt")))
+            : orderRepository.findByMemberIdAndStatus(
+                memberId,
+                status,
+                PageRequest.of(safePage - 1, safeSize, Sort.by(Sort.Direction.DESC, "createdAt")));
+    Map<String, Object> data = new HashMap<>();
+    data.put("orders", page.getContent().stream().map(this::toFrontendOrder).toList());
+    data.put("pageNum", safePage);
+    data.put("pageSize", safeSize);
+    data.put("totalCount", page.getTotalElements());
+    data.put("totalPages", page.getTotalPages());
     return data;
   }
 

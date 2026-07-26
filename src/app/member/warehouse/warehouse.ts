@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AlertService } from '../../services/alert.service';
@@ -7,6 +7,7 @@ import { AuthService } from '../../services/auth.service';
 import { DataService } from '../../services/data.service';
 import { TranslatePipe } from '../../services/translate.pipe';
 import { ImageLightbox } from '../../shared/image-lightbox/image-lightbox';
+import { Pagination } from '../../shared/pagination/pagination';
 import {
   CvsBrand,
   Order,
@@ -18,7 +19,7 @@ import {
 
 @Component({
   selector: 'app-warehouse',
-  imports: [DatePipe, FormsModule, TranslatePipe, ImageLightbox],
+  imports: [DatePipe, FormsModule, TranslatePipe, ImageLightbox, Pagination],
   template: `
     <div class="flex-between mb">
       <h2>{{ 'wh.title' | t }}</h2>
@@ -32,16 +33,16 @@ import {
     <!-- 第一頁：倉庫一覽 -->
     @if (step() === 1) {
       <div class="warehouse-tabs">
-        <button class="tab" [class.active]="warehouseTab() === 'available'" (click)="warehouseTab.set('available')">
+        <button class="tab" [class.active]="warehouseTab() === 'available'" (click)="setTab('available')">
           📦 {{ 'wh.availableTab' | t }}
         </button>
-        <button class="tab" [class.active]="warehouseTab() === 'pending'" (click)="warehouseTab.set('pending')">
-          🎁 {{ 'wh.pendingGiftTab' | t }} @if (pendingItems().length) { ({{ pendingItems().length }}) }
+        <button class="tab" [class.active]="warehouseTab() === 'pending'" (click)="setTab('pending')">
+          🎁 {{ 'wh.pendingGiftTab' | t }} @if (pendingItemsCount()) { ({{ pendingItemsCount() }}) }
         </button>
-        <button class="tab" [class.active]="warehouseTab() === 'placed'" (click)="warehouseTab.set('placed')">
+        <button class="tab" [class.active]="warehouseTab() === 'placed'" (click)="setTab('placed')">
           📬 {{ 'wh.placedTab' | t }}
         </button>
-        <button class="tab" [class.active]="warehouseTab() === 'shipped'" (click)="warehouseTab.set('shipped')">
+        <button class="tab" [class.active]="warehouseTab() === 'shipped'" (click)="setTab('shipped')">
           🚚 {{ 'wh.shippedTab' | t }}
         </button>
       </div>
@@ -197,6 +198,13 @@ import {
           }
         </div>
       }
+      <app-pagination
+        [totalCount]="activePage().totalCount"
+        [pageNum]="activePage().pageNum"
+        [pageSize]="activePage().pageSize"
+        (pageChange)="loadPage($event, activePage().pageSize)"
+        (pageSizeChange)="loadPage(1, $event)"
+      />
     }
 
     <!-- 第二頁：寄送方式 -->
@@ -454,7 +462,7 @@ import {
     `,
   ],
 })
-export class Warehouse {
+export class Warehouse implements OnInit {
   private data = inject(DataService);
   private auth = inject(AuthService);
   private router = inject(Router);
@@ -473,17 +481,19 @@ export class Warehouse {
 
   form: ShippingInfo = { method: 'cvs' };
 
-  items = computed(() => {
-    this.data.items();
-    return this.data.warehouseItems(this.memberId);
-  });
-  pendingItems = computed(() => {
-    this.data.items();
-    return this.data.itemsOf(this.memberId).filter((item) => item.status === 'gift_pending');
-  });
-  shippingOrders = computed(() =>
-    this.data.orders().filter((order) => order.memberId === this.memberId && order.status === this.warehouseTab())
+  itemPage = this.data.itemPage;
+  orderPage = this.data.orderPage;
+  activePage = computed(() =>
+    this.warehouseTab() === 'available' || this.warehouseTab() === 'pending' ? this.itemPage() : this.orderPage()
   );
+  items = computed(() => this.warehouseTab() === 'available' ? this.itemPage().items : []);
+  pendingItems = computed(() => this.warehouseTab() === 'pending' ? this.itemPage().items : []);
+  pendingItemsCount = computed(() => {
+    this.data.items();
+    return this.data.itemsOf(this.memberId).filter((item) => item.status === 'gift_pending').length;
+  });
+  availableItems = computed(() => this.data.warehouseItems(this.memberId));
+  shippingOrders = computed(() => this.orderPage().orders);
 
   total = computed(() => SHIPPING_FEE[this.method()]);
 
@@ -492,6 +502,24 @@ export class Warehouse {
   }
 
   previewUrl = signal<string | null>(null);
+
+  ngOnInit(): void {
+    this.loadPage();
+  }
+
+  setTab(tab: 'available' | 'pending' | 'placed' | 'shipped'): void {
+    this.warehouseTab.set(tab);
+    this.loadPage(1, this.activePage().pageSize);
+  }
+
+  loadPage(pageNum = 1, pageSize = 10): void {
+    const tab = this.warehouseTab();
+    if (tab === 'available' || tab === 'pending') {
+      void this.data.refreshItemPage(this.memberId, tab === 'available' ? 'in_warehouse' : 'gift_pending', pageNum, pageSize);
+      return;
+    }
+    void this.data.refreshOrderPage(tab, pageNum, pageSize, this.memberId);
+  }
 
   openPhoto(photo?: string) {
     if (!photo || this.isColor(photo)) return;
@@ -521,6 +549,7 @@ export class Warehouse {
     const it = this.recycleItem();
     if (it) {
       await this.data.recycle(it.id);
+      this.loadPage(this.itemPage().pageNum, this.itemPage().pageSize);
     }
     this.recycleItem.set(null);
   }
@@ -533,6 +562,7 @@ export class Warehouse {
     const it = this.exchangeItem();
     if (it) {
       await this.data.exchange(it.id);
+      this.loadPage(this.itemPage().pageNum, this.itemPage().pageSize);
     }
     this.exchangeItem.set(null);
   }
@@ -565,7 +595,7 @@ export class Warehouse {
       return;
     }
 
-    const ids = this.items().map((item) => item.id);
+    const ids = this.availableItems().map((item) => item.id);
     try {
       await this.data.checkout(this.memberId, ids, { ...f, method: m });
       this.router.navigate(['/member/orders']);

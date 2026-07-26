@@ -15,6 +15,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,6 +52,31 @@ public class WarehouseService {
     Map<String, Object> data = new HashMap<>();
     data.put("total", items.size());
     data.put("items", items);
+    return data;
+  }
+
+  public Map<String, Object> listPage(String memberId, String status, int pageNum, int pageSize) {
+    int safeSize = pageSize == 20 || pageSize == 50 ? pageSize : 10;
+    int safePage = Math.max(1, pageNum);
+    Pageable pageable = PageRequest.of(safePage - 1, safeSize, Sort.by(Sort.Direction.DESC, "updatedAt"));
+    boolean hasMember = memberId != null && !memberId.isBlank();
+    boolean hasStatus = status != null && !status.isBlank();
+    Page<WarehouseItem> page;
+    if (hasMember && hasStatus) {
+      page = itemRepository.findByMemberIdAndStatus(memberId, status, pageable);
+    } else if (hasMember) {
+      page = itemRepository.findByMemberId(memberId, pageable);
+    } else if (hasStatus) {
+      page = itemRepository.findByStatus(status, pageable);
+    } else {
+      page = itemRepository.findAll(pageable);
+    }
+    Map<String, Object> data = new HashMap<>();
+    data.put("items", page.getContent());
+    data.put("pageNum", safePage);
+    data.put("pageSize", safeSize);
+    data.put("totalCount", page.getTotalElements());
+    data.put("totalPages", page.getTotalPages());
     return data;
   }
 

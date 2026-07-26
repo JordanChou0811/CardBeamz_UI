@@ -4,18 +4,19 @@ import { DataService } from '../../services/data.service';
 import { Order, ShippingMethod } from '../../models/models';
 import { TranslatePipe } from '../../services/translate.pipe';
 import { ImageLightbox } from '../../shared/image-lightbox/image-lightbox';
+import { Pagination } from '../../shared/pagination/pagination';
 
 @Component({
   selector: 'app-orders-admin',
-  imports: [DatePipe, TranslatePipe, ImageLightbox],
+  imports: [DatePipe, TranslatePipe, ImageLightbox, Pagination],
   template: `
     <div class="flex-between mb">
       <h2>{{ 'aorders.title' | t }}</h2>
       <div class="tabs">
-        <button [class.active]="tab() === 'placed'" (click)="tab.set('placed')">
+        <button [class.active]="tab() === 'placed'" (click)="setTab('placed')">
           {{ 'aorders.pending' | t }}
         </button>
-        <button [class.active]="tab() === 'shipped'" (click)="tab.set('shipped')">{{ 'aorders.shipped' | t }}</button>
+        <button [class.active]="tab() === 'shipped'" (click)="setTab('shipped')">{{ 'aorders.shipped' | t }}</button>
       </div>
     </div>
 
@@ -81,6 +82,13 @@ import { ImageLightbox } from '../../shared/image-lightbox/image-lightbox';
       }
     }
 
+    <app-pagination
+      [totalCount]="page().totalCount"
+      [pageNum]="page().pageNum"
+      [pageSize]="page().pageSize"
+      (pageChange)="loadPage($event, page().pageSize)"
+      (pageSizeChange)="loadPage(1, $event)"
+    />
     <app-image-lightbox [url]="previewUrl()" (closed)="previewUrl.set(null)" />
   `,
   styles: [
@@ -133,12 +141,23 @@ import { ImageLightbox } from '../../shared/image-lightbox/image-lightbox';
 export class OrdersAdmin {
   private data = inject(DataService);
   tab = signal<'placed' | 'shipped'>('placed');
+  page = this.data.orderPage;
   previewUrl = signal<string | null>(null);
 
-  list = computed(() => this.data.orders().filter((o) => o.status === this.tab()));
+  list = computed(() => this.page().orders);
 
   constructor() {
-    void Promise.all([this.data.refreshOrders(), this.data.refreshMembers()]);
+    void this.data.refreshMembers();
+    this.loadPage();
+  }
+
+  setTab(tab: 'placed' | 'shipped'): void {
+    this.tab.set(tab);
+    this.loadPage(1, this.page().pageSize);
+  }
+
+  loadPage(pageNum = 1, pageSize = 10): void {
+    void this.data.refreshOrderPage(this.tab(), pageNum, pageSize);
   }
 
   memberName(id: string) {
@@ -162,5 +181,6 @@ export class OrdersAdmin {
   }
   async ship(o: Order) {
     await this.data.shipOrder(o.id);
+    this.loadPage(this.page().pageNum, this.page().pageSize);
   }
 }

@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -21,6 +22,13 @@ public class GroupController {
   @GetMapping("/list")
   public ApiResponse<Map<String, Object>> list() {
     return ApiResponse.ok("group", "list", "團拆列表", groupService.list());
+  }
+
+  @GetMapping("/list-page")
+  public ApiResponse<Map<String, Object>> listPage(
+      @RequestParam(defaultValue = "1") int pageNum,
+      @RequestParam(defaultValue = "10") int pageSize) {
+    return ApiResponse.ok("group", "list-page", "團拆分頁列表", groupService.listPage(pageNum, pageSize));
   }
 
   @GetMapping("/list-listed")

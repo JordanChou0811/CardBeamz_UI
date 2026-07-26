@@ -4,10 +4,11 @@ import { DataService } from '../../services/data.service';
 import { Member } from '../../models/models';
 import { TranslatePipe } from '../../services/translate.pipe';
 import { AlertService } from '../../services/alert.service';
+import { Pagination } from '../../shared/pagination/pagination';
 
 @Component({
   selector: 'app-members-admin',
-  imports: [FormsModule, TranslatePipe],
+  imports: [FormsModule, TranslatePipe, Pagination],
   template: `
     <div class="head">
       <h2>{{ 'amembers.title' | t }}</h2>
@@ -46,6 +47,13 @@ import { AlertService } from '../../services/alert.service';
           </tbody>
         </table>
       </div>
+      <app-pagination
+        [totalCount]="page().totalCount"
+        [pageNum]="page().pageNum"
+        [pageSize]="page().pageSize"
+        (pageChange)="loadPage($event, page().pageSize)"
+        (pageSizeChange)="loadPage(1, $event)"
+      />
     </div>
 
     @if (formOpen()) {
@@ -140,7 +148,8 @@ import { AlertService } from '../../services/alert.service';
 export class MembersAdmin {
   private data = inject(DataService);
 
-  members = computed(() => this.data.members().filter((m) => m.role === 'member'));
+  page = this.data.memberPage;
+  members = computed(() => this.page().members);
 
   formOpen = signal(false);
   mode = signal<'create' | 'edit'>('create');
@@ -154,7 +163,11 @@ export class MembersAdmin {
   };
 
   constructor() {
-    void this.data.refreshMembers();
+    this.loadPage();
+  }
+
+  loadPage(pageNum = 1, pageSize = 10): void {
+    void this.data.refreshMemberPage(pageNum, pageSize);
   }
 
   onDigits() {
@@ -219,6 +232,7 @@ export class MembersAdmin {
         await this.data.adminUpdateMember(this.form.id, patch);
       }
       this.closeForm();
+      this.loadPage(this.page().pageNum, this.page().pageSize);
     } catch {
       // API 錯誤已由 TelegramService 跳窗
     }

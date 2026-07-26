@@ -10,6 +10,9 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -58,6 +61,22 @@ public class MemberService {
     Map<String, Object> data = new HashMap<>();
     data.put("total", members.size());
     data.put("members", members);
+    return data;
+  }
+
+  /** 後台會員表格分頁查詢。pageNum 採 1 起算。 */
+  public Map<String, Object> listPage(int pageNum, int pageSize) {
+    int safeSize = pageSize == 20 || pageSize == 50 ? pageSize : 10;
+    int safePage = Math.max(1, pageNum);
+    Page<Member> page =
+        memberRepository.findByRole(
+            "member", PageRequest.of(safePage - 1, safeSize, Sort.by(Sort.Direction.DESC, "createdAt")));
+    Map<String, Object> data = new HashMap<>();
+    data.put("members", page.getContent().stream().map(this::toPublic).toList());
+    data.put("pageNum", safePage);
+    data.put("pageSize", safeSize);
+    data.put("totalCount", page.getTotalElements());
+    data.put("totalPages", page.getTotalPages());
     return data;
   }
 

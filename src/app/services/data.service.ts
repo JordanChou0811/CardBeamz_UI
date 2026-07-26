@@ -52,10 +52,34 @@ function newId(prefix: string): string {
 @Injectable({ providedIn: 'root' })
 export class DataService {
   readonly members = signal<Member[]>([]);
+  readonly memberPage = signal<{ members: Member[]; pageNum: number; pageSize: number; totalCount: number }>({
+    members: [],
+    pageNum: 1,
+    pageSize: 10,
+    totalCount: 0,
+  });
   readonly items = signal<WarehouseItem[]>([]);
+  readonly itemPage = signal<{ items: WarehouseItem[]; pageNum: number; pageSize: number; totalCount: number }>({
+    items: [],
+    pageNum: 1,
+    pageSize: 10,
+    totalCount: 0,
+  });
   readonly orders = signal<Order[]>([]);
+  readonly orderPage = signal<{ orders: Order[]; pageNum: number; pageSize: number; totalCount: number }>({
+    orders: [],
+    pageNum: 1,
+    pageSize: 10,
+    totalCount: 0,
+  });
   readonly news = signal<NewsItem[]>([]);
   readonly groups = signal<Group[]>([]);
+  readonly groupPage = signal<{ groups: Group[]; pageNum: number; pageSize: number; totalCount: number }>({
+    groups: [],
+    pageNum: 1,
+    pageSize: 10,
+    totalCount: 0,
+  });
   /** 目前載入的團卡片目錄（依 refreshGroupCards 的 groupId） */
   readonly groupCards = signal<GroupCard[]>([]);
   readonly listedGroups = signal<Group[]>([]);
@@ -115,6 +139,32 @@ export class DataService {
     this.members.set(res.data.members ?? []);
   }
 
+  async refreshMemberPage(pageNum = 1, pageSize = 10): Promise<void> {
+    if (!environment.useApi) {
+      const members = this.members().filter((member) => member.role === 'member');
+      const start = (pageNum - 1) * pageSize;
+      this.memberPage.set({
+        members: members.slice(start, start + pageSize),
+        pageNum,
+        pageSize,
+        totalCount: members.length,
+      });
+      return;
+    }
+    const res = await this.api.get<{
+      members: Member[];
+      pageNum: number;
+      pageSize: number;
+      totalCount: number;
+    }>('member', 'list-page', { pageNum, pageSize });
+    this.memberPage.set({
+      members: res.data.members ?? [],
+      pageNum: res.data.pageNum ?? pageNum,
+      pageSize: res.data.pageSize ?? pageSize,
+      totalCount: res.data.totalCount ?? 0,
+    });
+  }
+
   async refreshItems(memberId?: string, status?: string): Promise<void> {
     if (!environment.useApi) return;
     const res = await this.api.get<{ items: WarehouseItem[] }>('warehouse', 'list', {
@@ -134,6 +184,29 @@ export class DataService {
     this.items.set([...incoming, ...others]);
   }
 
+  async refreshItemPage(memberId?: string, status?: string, pageNum = 1, pageSize = 10): Promise<void> {
+    if (!environment.useApi) {
+      const items = this.items().filter(
+        (item) => (!memberId || item.memberId === memberId) && (!status || item.status === status)
+      );
+      const start = (pageNum - 1) * pageSize;
+      this.itemPage.set({ items: items.slice(start, start + pageSize), pageNum, pageSize, totalCount: items.length });
+      return;
+    }
+    const res = await this.api.get<{
+      items: WarehouseItem[];
+      pageNum: number;
+      pageSize: number;
+      totalCount: number;
+    }>('warehouse', 'list-page', { memberId, status, pageNum, pageSize });
+    this.itemPage.set({
+      items: res.data.items ?? [],
+      pageNum: res.data.pageNum ?? pageNum,
+      pageSize: res.data.pageSize ?? pageSize,
+      totalCount: res.data.totalCount ?? 0,
+    });
+  }
+
   async refreshOrders(memberId?: string): Promise<void> {
     if (!environment.useApi) return;
     const [placed, shipped] = await Promise.all([
@@ -149,6 +222,34 @@ export class DataService {
     this.orders.set([...all, ...others]);
   }
 
+  async refreshOrderPage(status: Order['status'], pageNum = 1, pageSize = 10, memberId?: string): Promise<void> {
+    if (!environment.useApi) {
+      const orders = this.orders().filter(
+        (order) => order.status === status && (!memberId || order.memberId === memberId)
+      );
+      const start = (pageNum - 1) * pageSize;
+      this.orderPage.set({
+        orders: orders.slice(start, start + pageSize),
+        pageNum,
+        pageSize,
+        totalCount: orders.length,
+      });
+      return;
+    }
+    const res = await this.api.get<{
+      orders: Order[];
+      pageNum: number;
+      pageSize: number;
+      totalCount: number;
+    }>('order', 'list-page', { status, pageNum, pageSize, memberId });
+    this.orderPage.set({
+      orders: res.data.orders ?? [],
+      pageNum: res.data.pageNum ?? pageNum,
+      pageSize: res.data.pageSize ?? pageSize,
+      totalCount: res.data.totalCount ?? 0,
+    });
+  }
+
   async refreshNews(): Promise<void> {
     if (!environment.useApi) return;
     const res = await this.api.get<{ news: NewsItem[] }>('news', 'list');
@@ -159,6 +260,32 @@ export class DataService {
     if (!environment.useApi) return;
     const res = await this.api.get<{ groups: Group[] }>('group', 'list');
     this.groups.set(res.data.groups ?? []);
+  }
+
+  async refreshGroupPage(pageNum = 1, pageSize = 10): Promise<void> {
+    if (!environment.useApi) {
+      const groups = this.groups();
+      const start = (pageNum - 1) * pageSize;
+      this.groupPage.set({
+        groups: groups.slice(start, start + pageSize),
+        pageNum,
+        pageSize,
+        totalCount: groups.length,
+      });
+      return;
+    }
+    const res = await this.api.get<{
+      groups: Group[];
+      pageNum: number;
+      pageSize: number;
+      totalCount: number;
+    }>('group', 'list-page', { pageNum, pageSize });
+    this.groupPage.set({
+      groups: res.data.groups ?? [],
+      pageNum: res.data.pageNum ?? pageNum,
+      pageSize: res.data.pageSize ?? pageSize,
+      totalCount: res.data.totalCount ?? 0,
+    });
   }
 
   async refreshReceivedGifts(memberId: string): Promise<void> {

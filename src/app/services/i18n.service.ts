@@ -49,6 +49,14 @@ const DICT: Dict = {
   'common.groupPhoto': { zh: '卡片圖片', en: 'Card Image' },
   'common.status': { zh: '狀態', en: 'Status' },
 
+  // ---- 分頁 ----
+  'pagination.total': { zh: '共', en: 'Total' },
+  'pagination.records': { zh: '筆', en: 'records' },
+  'pagination.page': { zh: '第', en: 'Page' },
+  'pagination.perPage': { zh: '每頁', en: 'Per page' },
+  'pagination.previous': { zh: '上一頁', en: 'Previous' },
+  'pagination.next': { zh: '下一頁', en: 'Next' },
+
   // ---- 首頁 ----
   'landing.title': { zh: '卡牌倉儲與團務管理', en: 'Card Storage & Group Management' },
   'landing.subtitle': {

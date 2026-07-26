@@ -24,6 +24,12 @@ public class MemberController {
     return ApiResponse.ok("member", "list", "會員列表", memberService.list());
   }
 
+  @GetMapping("/list-page")
+  public ApiResponse<Map<String, Object>> listPage(
+      @RequestParam(defaultValue = "1") int pageNum, @RequestParam(defaultValue = "10") int pageSize) {
+    return ApiResponse.ok("member", "list-page", "會員列表", memberService.listPage(pageNum, pageSize));
+  }
+
   @GetMapping("/me")
   public ApiResponse<Map<String, Object>> me(@RequestParam String memberId) {
     return ApiResponse.ok(
