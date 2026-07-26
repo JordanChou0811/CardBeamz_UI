@@ -49,12 +49,6 @@ import {
           <table class="table">
             <thead>
               <tr>
-                <th style="width:60px">
-                  <label class="checkbox">
-                    <input type="checkbox" [checked]="allChecked()" (change)="toggleAll($event)" />
-                    {{ 'wh.selectAll' | t }}
-                  </label>
-                </th>
                 <th>{{ 'common.group' | t }}</th>
                 <th>{{ 'common.groupPhoto' | t }}</th>
                 <th style="width:260px">{{ 'wh.recycleExchange' | t }}</th>
@@ -63,15 +57,6 @@ import {
             <tbody>
               @for (it of items(); track it.id) {
                 <tr>
-                  <td>
-                    <label class="checkbox">
-                      <input
-                        type="checkbox"
-                        [checked]="selected().has(it.id)"
-                        (change)="toggleOne(it.id)"
-                      />
-                    </label>
-                  </td>
                   <td>
                     <b>{{ it.cbz }}</b>
                     @if (it.cardName || it.cardNo) {
@@ -106,9 +91,9 @@ import {
           </table>
 
           <div class="flex-between mt-3">
-            <span class="text-muted">{{ 'wh.selectedCount' | t }} {{ selected().size }} {{ 'wh.items' | t }}</span>
-            <button class="btn btn-primary" [disabled]="selected().size === 0" (click)="goStep2()">
-              {{ 'common.next' | t }} →
+            <span class="text-muted">{{ 'wh.shipAllHint' | t }}</span>
+            <button class="btn btn-primary" (click)="goStep2()">
+              {{ 'wh.shipAll' | t }}
             </button>
           </div>
         }
@@ -419,7 +404,6 @@ export class Warehouse {
 
   step = signal(1);
   warehouseTab = signal<'available' | 'pending'>('available');
-  selected = signal<Set<string>>(new Set());
   recycleItem = signal<WarehouseItem | null>(null);
   exchangeItem = signal<WarehouseItem | null>(null);
 
@@ -451,24 +435,6 @@ export class Warehouse {
     this.previewUrl.set(photo);
   }
 
-  allChecked() {
-    const list = this.items();
-    return list.length > 0 && list.every((i) => this.selected().has(i.id));
-  }
-
-  toggleAll(e: Event) {
-    const checked = (e.target as HTMLInputElement).checked;
-    const set = new Set<string>();
-    if (checked) this.items().forEach((i) => set.add(i.id));
-    this.selected.set(set);
-  }
-
-  toggleOne(id: string) {
-    const set = new Set(this.selected());
-    set.has(id) ? set.delete(id) : set.add(id);
-    this.selected.set(set);
-  }
-
   setMethod(m: ShippingMethod) {
     this.method.set(m);
     this.form = { method: m };
@@ -483,7 +449,6 @@ export class Warehouse {
     const it = this.recycleItem();
     if (it) {
       await this.data.recycle(it.id);
-      this.dropFromSelection(it.id);
     }
     this.recycleItem.set(null);
   }
@@ -496,15 +461,8 @@ export class Warehouse {
     const it = this.exchangeItem();
     if (it) {
       await this.data.exchange(it.id);
-      this.dropFromSelection(it.id);
     }
     this.exchangeItem.set(null);
-  }
-
-  private dropFromSelection(id: string) {
-    const set = new Set(this.selected());
-    set.delete(id);
-    this.selected.set(set);
   }
 
   goStep2() {
@@ -535,10 +493,9 @@ export class Warehouse {
       return;
     }
 
-    const ids = [...this.selected()];
+    const ids = this.items().map((item) => item.id);
     try {
       await this.data.checkout(this.memberId, ids, { ...f, method: m });
-      this.selected.set(new Set());
       this.router.navigate(['/member/orders']);
     } catch {
       // API 錯誤已由 TelegramService 跳窗

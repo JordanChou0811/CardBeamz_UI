@@ -185,6 +185,8 @@ const DICT: Dict = {
   'wh.step2': { zh: '寄送方式', en: 'Shipping' },
   'wh.empty': { zh: '倉庫目前沒有卡牌', en: 'No cards in your warehouse' },
   'wh.selectAll': { zh: '全選', en: 'Select All' },
+  'wh.shipAllHint': { zh: '將一次出貨全部可操作卡片', en: 'All available cards will be shipped together' },
+  'wh.shipAll': { zh: '全選並寄出', en: 'Ship All' },
   'wh.recycleExchange': { zh: '回收 / 換團拆金', en: 'Recycle / Exchange' },
   'wh.availableTab': { zh: '可操作卡片', en: 'Available Cards' },
   'wh.pendingGiftTab': { zh: '贈與待答覆', en: 'Pending Gifts' },
