@@ -236,8 +236,8 @@ export class MemberLayout {
   links = [
     { path: '/member/shop', label: 'nav.shop', icon: '🛒' },
     { path: '/member/cart', label: 'nav.cart', icon: '🧺' },
+    { path: '/member/purchase-orders', label: 'nav.purchaseOrders', icon: '🧾' },
     { path: '/member/warehouse', label: 'nav.warehouse', icon: '📦' },
-    { path: '/member/orders', label: 'nav.orders', icon: '🚚' },
     { path: '/member/recycled', label: 'nav.recycled', icon: '♻️' },
     { path: '/member/credit', label: 'nav.credit', icon: '💰' },
     { path: '/member/gift', label: 'nav.gift', icon: '🎁' },

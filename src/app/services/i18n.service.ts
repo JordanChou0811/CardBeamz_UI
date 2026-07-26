@@ -173,6 +173,7 @@ const DICT: Dict = {
   // ---- 會員版面 ----
   'nav.warehouse': { zh: '我的倉庫', en: 'My Warehouse' },
   'nav.orders': { zh: '已下單/已寄出', en: 'Orders / Shipped' },
+  'nav.purchaseOrders': { zh: '我的訂單', en: 'My Orders' },
   'nav.recycled': { zh: '已回收/已換團拆金', en: 'Recycled / Exchanged' },
   'nav.credit': { zh: '團拆金', en: 'Credit' },
   'nav.gift': { zh: '贈與', en: 'Gift' },
@@ -190,6 +191,10 @@ const DICT: Dict = {
   'wh.recycleExchange': { zh: '回收 / 換團拆金', en: 'Recycle / Exchange' },
   'wh.availableTab': { zh: '可操作卡片', en: 'Available Cards' },
   'wh.pendingGiftTab': { zh: '贈與待答覆', en: 'Pending Gifts' },
+  'wh.placedTab': { zh: '已下單', en: 'Placed' },
+  'wh.shippedTab': { zh: '已寄出', en: 'Shipped' },
+  'wh.emptyPlaced': { zh: '目前沒有已下單的寄送申請', en: 'No placed shipping requests' },
+  'wh.emptyShipped': { zh: '目前沒有已寄出的卡片', en: 'No shipped cards' },
   'wh.emptyPendingGift': {
     zh: '目前沒有等待對方答覆的贈與卡片',
     en: 'No cards are awaiting a recipient response',
@@ -273,6 +278,16 @@ const DICT: Dict = {
   'gift.offeredCredit': { zh: '贈與你 {{amount}} 團拆金', en: 'offered you {{amount}} credit' },
   'gift.accept': { zh: '同意', en: 'Accept' },
   'gift.reject': { zh: '拒絕', en: 'Reject' },
+
+  // ---- 我的訂單（開團認購） ----
+  'purchaseOrders.title': { zh: '我的訂單', en: 'My Orders' },
+  'purchaseOrders.empty': { zh: '尚無開團認購紀錄', en: 'No group purchase orders yet' },
+  'purchaseOrders.item': { zh: '認購內容', en: 'Purchase' },
+  'purchaseOrders.payment': { zh: '付款明細', en: 'Payment' },
+  'purchaseOrders.createdAt': { zh: '下單時間', en: 'Ordered At' },
+  'purchaseOrders.stakes': { zh: '注', en: 'stakes' },
+  'purchaseOrders.credit': { zh: '團拆金', en: 'Credit' },
+  'purchaseOrders.cash': { zh: '待付現金', en: 'Cash Due' },
 
   // ---- 更改密碼 ----
   'pwd.title': { zh: '更改密碼', en: 'Change Password' },

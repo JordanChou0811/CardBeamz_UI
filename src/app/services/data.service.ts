@@ -6,6 +6,7 @@ import {
   GroupCard,
   Member,
   NewsItem,
+  PurchaseOrder,
   Order,
   PriceTier,
   ShippingInfo,
@@ -62,6 +63,7 @@ export class DataService {
   readonly cartLines = signal<CartLine[]>([]);
   readonly cartGrandSubtotal = signal(0);
   readonly cartMaxCredit = signal(0);
+  readonly purchaseOrders = signal<PurchaseOrder[]>([]);
   readonly receivedGifts = signal<GiftTransaction[]>([]);
   readonly ready = signal(false);
   readonly loadError = signal('');
@@ -729,6 +731,19 @@ export class DataService {
     this.cartLines.set(res.data.items ?? []);
     this.cartGrandSubtotal.set(res.data.grandSubtotal ?? 0);
     this.cartMaxCredit.set(res.data.maxCreditUsable ?? 0);
+  }
+
+  async refreshPurchaseOrders(memberId: string): Promise<void> {
+    if (!memberId) {
+      this.purchaseOrders.set([]);
+      return;
+    }
+    if (!environment.useApi) {
+      this.purchaseOrders.set([]);
+      return;
+    }
+    const res = await this.api.get<{ orders: PurchaseOrder[] }>('cart', 'orders', { memberId });
+    this.purchaseOrders.set(res.data.orders ?? []);
   }
 
   async upsertCart(memberId: string, groupId: string, quantity: number): Promise<void> {

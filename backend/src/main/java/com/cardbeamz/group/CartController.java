@@ -67,6 +67,11 @@ public class CartController {
             req.getMemberId(), req.getCreditToUse() == null ? 0 : req.getCreditToUse()));
   }
 
+  @GetMapping("/orders")
+  public ApiResponse<Map<String, Object>> orders(@RequestParam String memberId) {
+    return ApiResponse.ok("cart", "orders", "我的訂單", cartService.orders(memberId));
+  }
+
   @Data
   public static class UpsertRequest {
     private String memberId;

@@ -34,7 +34,13 @@ export const routes: Routes = [
       },
       {
         path: 'orders',
-        loadComponent: () => import('./member/orders/orders').then((m) => m.Orders),
+        redirectTo: 'warehouse',
+        pathMatch: 'full',
+      },
+      {
+        path: 'purchase-orders',
+        loadComponent: () =>
+          import('./member/purchase-orders/purchase-orders').then((m) => m.PurchaseOrders),
       },
       {
         path: 'recycled',

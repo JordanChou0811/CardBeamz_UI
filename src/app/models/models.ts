@@ -132,6 +132,23 @@ export interface CartLine {
   teamName?: string;
 }
 
+export interface PurchaseOrder {
+  id: string;
+  kind: 'stake' | 'team';
+  groupCode: string;
+  groupName: string;
+  groupPhoto: string;
+  quantity?: number;
+  unitPrice?: number;
+  teamCode?: string;
+  teamName?: string;
+  subtotal: number;
+  creditUsed: number;
+  cashDue: number;
+  status: string;
+  createdAt: string;
+}
+
 /** 團的卡片目錄（尚未分派給會員） */
 export interface GroupCard {
   id: string;

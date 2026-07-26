@@ -272,6 +272,52 @@ public class CartService {
     return data;
   }
 
+  /** 會員已結帳的開團認購紀錄（注數團與買隊團）。 */
+  public Map<String, Object> orders(String memberId) {
+    memberService.require(memberId);
+    List<Map<String, Object>> orders = new ArrayList<>();
+    for (StakePurchase purchase : stakePurchaseRepository.findByMemberIdOrderByCreatedAtDesc(memberId)) {
+      GroupEntity group = groupRepository.findById(purchase.getGroupId()).orElse(null);
+      if (group == null) continue;
+      Map<String, Object> row = new HashMap<>();
+      row.put("id", purchase.getId());
+      row.put("kind", "stake");
+      row.put("groupCode", group.getCode());
+      row.put("groupName", group.getName());
+      row.put("groupPhoto", group.getPhoto());
+      row.put("quantity", purchase.getQuantity());
+      row.put("unitPrice", purchase.getUnitPrice());
+      row.put("subtotal", purchase.getSubtotal());
+      row.put("creditUsed", purchase.getCreditUsed());
+      row.put("cashDue", purchase.getCashDue());
+      row.put("status", purchase.getStatus());
+      row.put("createdAt", purchase.getCreatedAt().toString());
+      orders.add(row);
+    }
+    for (TeamSlot slot : teamSlotRepository.findByBuyerMemberIdOrderBySoldAtDesc(memberId)) {
+      GroupEntity group = groupRepository.findById(slot.getGroupId()).orElse(null);
+      if (group == null) continue;
+      Map<String, Object> row = new HashMap<>();
+      row.put("id", slot.getId());
+      row.put("kind", "team");
+      row.put("groupCode", group.getCode());
+      row.put("groupName", group.getName());
+      row.put("groupPhoto", group.getPhoto());
+      row.put("teamCode", slot.getTeamCode());
+      row.put("teamName", slot.getTeamName());
+      row.put("subtotal", slot.getPaidAmount());
+      row.put("creditUsed", slot.getCreditUsed());
+      row.put("cashDue", slot.getCashDue());
+      row.put("status", slot.getStatus());
+      row.put("createdAt", slot.getSoldAt() == null ? "" : slot.getSoldAt().toString());
+      orders.add(row);
+    }
+    orders.sort(
+        (a, b) ->
+            String.valueOf(b.get("createdAt")).compareTo(String.valueOf(a.get("createdAt"))));
+    return Map.of("orders", orders);
+  }
+
   private Map<String, Object> buildStakeLine(GroupEntity g, int quantity) {
     List<PriceTier> tiers = StakePricing.parseTiers(g.getPriceTiersJson());
     int unit = StakePricing.unitPrice(g.getBasePrice(), tiers, quantity);

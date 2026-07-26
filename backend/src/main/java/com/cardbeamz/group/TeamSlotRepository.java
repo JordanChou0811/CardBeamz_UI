@@ -9,6 +9,8 @@ import org.springframework.transaction.annotation.Transactional;
 public interface TeamSlotRepository extends JpaRepository<TeamSlot, String> {
   List<TeamSlot> findByGroupIdOrderByTeamCodeAsc(String groupId);
 
+  List<TeamSlot> findByBuyerMemberIdOrderBySoldAtDesc(String buyerMemberId);
+
   Optional<TeamSlot> findByGroupIdAndTeamCode(String groupId, String teamCode);
 
   long countByGroupId(String groupId);

@@ -1,3 +1,4 @@
+import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -8,6 +9,7 @@ import { TranslatePipe } from '../../services/translate.pipe';
 import { ImageLightbox } from '../../shared/image-lightbox/image-lightbox';
 import {
   CvsBrand,
+  Order,
   ShippingInfo,
   ShippingMethod,
   SHIPPING_FEE,
@@ -16,7 +18,7 @@ import {
 
 @Component({
   selector: 'app-warehouse',
-  imports: [FormsModule, TranslatePipe, ImageLightbox],
+  imports: [DatePipe, FormsModule, TranslatePipe, ImageLightbox],
   template: `
     <div class="flex-between mb">
       <h2>{{ 'wh.title' | t }}</h2>
@@ -35,6 +37,12 @@ import {
         </button>
         <button class="tab" [class.active]="warehouseTab() === 'pending'" (click)="warehouseTab.set('pending')">
           🎁 {{ 'wh.pendingGiftTab' | t }} @if (pendingItems().length) { ({{ pendingItems().length }}) }
+        </button>
+        <button class="tab" [class.active]="warehouseTab() === 'placed'" (click)="warehouseTab.set('placed')">
+          📬 {{ 'wh.placedTab' | t }}
+        </button>
+        <button class="tab" [class.active]="warehouseTab() === 'shipped'" (click)="warehouseTab.set('shipped')">
+          🚚 {{ 'wh.shippedTab' | t }}
         </button>
       </div>
 
@@ -98,7 +106,7 @@ import {
           </div>
         }
         </div>
-      } @else {
+      } @else if (warehouseTab() === 'pending') {
         <div class="card">
           @if (pendingItems().length === 0) {
             <div class="empty">
@@ -145,6 +153,47 @@ import {
                 }
               </tbody>
             </table>
+          }
+        </div>
+      } @else {
+        <div class="card">
+          @if (shippingOrders().length === 0) {
+            <div class="empty">
+              <span class="emoji">📦</span>
+              {{ (warehouseTab() === 'placed' ? 'wh.emptyPlaced' : 'wh.emptyShipped') | t }}
+            </div>
+          } @else {
+            @for (order of shippingOrders(); track order.id) {
+              <div class="shipping-order">
+                <div class="flex-between">
+                  <b>{{ order.id }}</b>
+                  <span class="text-muted">{{ order.createdAt | date: 'yyyy/MM/dd HH:mm' }}</span>
+                </div>
+                <p class="text-muted shipping-detail">{{ shippingDetail(order) }}</p>
+                <table class="table">
+                  <thead><tr><th>{{ 'common.group' | t }}</th><th>{{ 'common.groupPhoto' | t }}</th></tr></thead>
+                  <tbody>
+                    @for (item of order.items; track item.id) {
+                      <tr>
+                        <td><b>{{ item.cbz }}</b> @if (item.cardName || item.cardNo) { <span class="text-muted">· {{ item.cardName }}{{ item.cardNo ? ' #' + item.cardNo : '' }}</span> }</td>
+                        <td>
+                          <button
+                            type="button"
+                            class="thumb thumb-btn"
+                            [class.clickable]="!isColor(item.groupPhoto) && !!item.groupPhoto"
+                            [style.background]="isColor(item.groupPhoto) ? item.groupPhoto : null"
+                            [disabled]="isColor(item.groupPhoto) || !item.groupPhoto"
+                            (click)="openPhoto(item.groupPhoto)"
+                          >
+                            @if (!isColor(item.groupPhoto) && item.groupPhoto) { <img [src]="item.groupPhoto" alt="" /> } @else { {{ item.cbz.slice(0, 5) }} }
+                          </button>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
           }
         </div>
       }
@@ -329,6 +378,17 @@ import {
         font-size: 13px;
         font-weight: 700;
       }
+      .shipping-order {
+        padding: 14px 0;
+        border-bottom: 1px solid var(--c-border);
+      }
+      .shipping-order:last-child {
+        padding-bottom: 0;
+        border-bottom: none;
+      }
+      .shipping-detail {
+        margin: 7px 0 10px;
+      }
       td .btn {
         margin-right: 6px;
       }
@@ -403,7 +463,7 @@ export class Warehouse {
   private memberId = this.auth.currentUser()!.id;
 
   step = signal(1);
-  warehouseTab = signal<'available' | 'pending'>('available');
+  warehouseTab = signal<'available' | 'pending' | 'placed' | 'shipped'>('available');
   recycleItem = signal<WarehouseItem | null>(null);
   exchangeItem = signal<WarehouseItem | null>(null);
 
@@ -421,6 +481,9 @@ export class Warehouse {
     this.data.items();
     return this.data.itemsOf(this.memberId).filter((item) => item.status === 'gift_pending');
   });
+  shippingOrders = computed(() =>
+    this.data.orders().filter((order) => order.memberId === this.memberId && order.status === this.warehouseTab())
+  );
 
   total = computed(() => SHIPPING_FEE[this.method()]);
 
@@ -433,6 +496,15 @@ export class Warehouse {
   openPhoto(photo?: string) {
     if (!photo || this.isColor(photo)) return;
     this.previewUrl.set(photo);
+  }
+
+  shippingDetail(order: Order): string {
+    const shipping = order.shipping;
+    if (shipping.method === 'cvs') {
+      return `${shipping.cvsBrand}・${shipping.name}・${shipping.phone}・${shipping.storeName}`;
+    }
+    if (shipping.method === 'mail') return `${shipping.name}・${shipping.phone}・${shipping.address}`;
+    return `Line：${shipping.lineName}（${shipping.lineId}）`;
   }
 
   setMethod(m: ShippingMethod) {
