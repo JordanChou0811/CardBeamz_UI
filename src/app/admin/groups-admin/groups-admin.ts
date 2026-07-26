@@ -6,6 +6,7 @@ import { Group, GroupCard, GroupType, PriceTier, TeamSlot } from '../../models/m
 import { TranslatePipe } from '../../services/translate.pipe';
 import { AlertService } from '../../services/alert.service';
 import { ConfirmService } from '../../services/confirm.service';
+import { ImageLightbox } from '../../shared/image-lightbox/image-lightbox';
 
 function isTeamSale(type?: string): boolean {
   return type === 'bball_team' || type === 'baseball_team';
@@ -13,7 +14,7 @@ function isTeamSale(type?: string): boolean {
 
 @Component({
   selector: 'app-groups-admin',
-  imports: [FormsModule, TranslatePipe],
+  imports: [FormsModule, TranslatePipe, ImageLightbox],
   template: `
     <h2 class="mb">🎴 {{ 'groups.title' | t }}</h2>
 
@@ -133,11 +134,18 @@ function isTeamSale(type?: string): boolean {
                 @for (c of data.groupCards(); track c.id) {
                   <tr>
                     <td>
-                      <div class="thumb" [style.background]="isColor(c.photo) ? c.photo : null">
+                      <button
+                        type="button"
+                        class="thumb thumb-btn"
+                        [class.clickable]="!isColor(c.photo) && !!c.photo"
+                        [style.background]="isColor(c.photo) ? c.photo : null"
+                        [disabled]="isColor(c.photo) || !c.photo"
+                        (click)="openPhoto(c.photo)"
+                      >
                         @if (!isColor(c.photo) && c.photo) {
                           <img [src]="c.photo" alt="" />
                         }
-                      </div>
+                      </button>
                     </td>
                     <td>
                       @if (c.cardName || c.cardNo) {
@@ -209,13 +217,20 @@ function isTeamSale(type?: string): boolean {
               @for (g of data.groups(); track g.id) {
                 <tr>
                   <td>
-                    <div class="thumb" [style.background]="isColor(g.photo) ? g.photo : null">
+                    <button
+                      type="button"
+                      class="thumb thumb-btn"
+                      [class.clickable]="!isColor(g.photo) && !!g.photo"
+                      [style.background]="isColor(g.photo) ? g.photo : null"
+                      [disabled]="isColor(g.photo) || !g.photo"
+                      (click)="openPhoto(g.photo)"
+                    >
                       @if (!isColor(g.photo) && g.photo) {
                         <img [src]="g.photo" alt="" />
                       } @else {
                         {{ g.code }}
                       }
-                    </div>
+                    </button>
                   </td>
                   <td><b>{{ g.code }}</b></td>
                   <td>{{ g.name }}</td>
@@ -326,14 +341,18 @@ function isTeamSale(type?: string): boolean {
           <div class="field">
             <label>{{ 'aitems.cardPhoto' | t }}</label>
             <div class="photo-row">
-              <div
-                class="thumb-lg"
+              <button
+                type="button"
+                class="thumb-lg thumb-btn"
+                [class.clickable]="!isColor(selectedCardPreview(formMg)) && !!selectedCardPreview(formMg)"
                 [style.background]="isColor(selectedCardPreview(formMg)) ? selectedCardPreview(formMg) : null"
+                [disabled]="isColor(selectedCardPreview(formMg)) || !selectedCardPreview(formMg)"
+                (click)="openPhoto(selectedCardPreview(formMg))"
               >
                 @if (!isColor(selectedCardPreview(formMg)) && selectedCardPreview(formMg)) {
                   <img [src]="selectedCardPreview(formMg)" alt="preview" />
                 }
-              </div>
+              </button>
               <div class="photo-inputs">
                 <p class="hint-text" style="margin: 0 0 8px">
                   {{ cardPhoto() ? ('aitems.cardPhoto' | t) : ('aitems.useGroupPhoto' | t) }}
@@ -374,11 +393,18 @@ function isTeamSale(type?: string): boolean {
           <div class="field">
             <label>{{ 'groups.photo' | t }}</label>
             <div class="photo-row">
-              <div class="thumb-lg" [style.background]="isColor(photo) ? photo : null">
+              <button
+                type="button"
+                class="thumb-lg thumb-btn"
+                [class.clickable]="!isColor(photo) && !!photo"
+                [style.background]="isColor(photo) ? photo : null"
+                [disabled]="isColor(photo) || !photo"
+                (click)="openPhoto(photo)"
+              >
                 @if (!isColor(photo) && photo) {
                   <img [src]="photo" alt="preview" />
                 }
-              </div>
+              </button>
               <div class="photo-inputs">
                 <input type="text" [(ngModel)]="photo" [placeholder]="'groups.photoUrl' | t" autocomplete="off" />
                 <button type="button" class="btn btn-outline btn-sm mt-1" (click)="openPicker()">
@@ -526,6 +552,8 @@ function isTeamSale(type?: string): boolean {
         </div>
       </div>
     }
+
+    <app-image-lightbox [url]="previewUrl()" (closed)="previewUrl.set(null)" />
   `,
   styles: [
     `
@@ -578,6 +606,23 @@ function isTeamSale(type?: string): boolean {
         width: 100%;
         height: 100%;
         object-fit: cover;
+      }
+      button.thumb-btn {
+        border: 1px solid var(--c-border);
+        padding: 0;
+        font: inherit;
+        color: inherit;
+        cursor: default;
+      }
+      button.thumb-btn.clickable {
+        cursor: pointer;
+      }
+      button.thumb-btn.clickable:hover {
+        transform: scale(1.06);
+        box-shadow: 0 0 0 2px var(--c-primary);
+      }
+      button.thumb-btn:disabled {
+        opacity: 1;
       }
       .thumb img {
         width: 100%;
@@ -774,6 +819,7 @@ export class GroupsAdmin {
   folderImages = signal<UploadedImage[]>([]);
   folderNextCursor = signal<string | undefined>(undefined);
   folderLoading = signal(false);
+  previewUrl = signal<string | null>(null);
 
   constructor() {
     void this.data.refreshGroups();
@@ -785,6 +831,11 @@ export class GroupsAdmin {
 
   isColor(value: string): boolean {
     return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value?.trim() ?? '');
+  }
+
+  openPhoto(photo?: string): void {
+    if (!photo || this.isColor(photo)) return;
+    this.previewUrl.set(photo);
   }
 
   openPicker() {

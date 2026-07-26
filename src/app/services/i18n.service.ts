@@ -46,7 +46,7 @@ const DICT: Dict = {
     en: 'Remove this image from the list? (Cloudinary file is not deleted)',
   },
   'common.group': { zh: '團', en: 'Group' },
-  'common.groupPhoto': { zh: '分團照', en: 'Photo' },
+  'common.groupPhoto': { zh: '卡片圖片', en: 'Card Image' },
   'common.status': { zh: '狀態', en: 'Status' },
 
   // ---- 首頁 ----
@@ -371,13 +371,13 @@ const DICT: Dict = {
   'groups.name': { zh: '團名稱', en: 'Group Name' },
   'groups.namePlaceholder': { zh: '請輸入團名稱', en: 'Enter group name' },
   'groups.exchange': { zh: '換團拆金金額', en: 'Exchange Value' },
-  'groups.photo': { zh: '分團照', en: 'Group Photo' },
-  'groups.photoUrl': { zh: '圖片網址（或色碼）', en: 'Image URL (or color)' },
-  'groups.pickPhoto': { zh: '從已上傳選擇', en: 'Pick from uploads' },
+  'groups.photo': { zh: '團封面', en: 'Group Cover' },
+  'groups.photoUrl': { zh: '團封面網址（或色碼）', en: 'Group cover URL (or color)' },
+  'groups.pickPhoto': { zh: '選擇團封面', en: 'Choose Group Cover' },
   'groups.list': { zh: '團列表', en: 'Group List' },
   'groups.empty': { zh: '尚無團，請先新增', en: 'No groups yet, please add one' },
   'groups.errRequired': { zh: '團代號與名稱為必填', en: 'Code and name are required' },
-  'groups.selectImage': { zh: '選擇已上傳圖片', en: 'Select Uploaded Image' },
+  'groups.selectImage': { zh: '選擇團封面圖片', en: 'Select Group Cover Image' },
   'groups.noUploads': {
     zh: '尚無已上傳圖片，請先到「圖片上傳」上傳。',
     en: 'No uploads yet. Please upload via "Upload Images" first.',
@@ -526,7 +526,7 @@ const DICT: Dict = {
   'aitems.cardNo': { zh: '卡號', en: 'Card No.' },
   'aitems.cardNoPlaceholder': { zh: '例如：001 / SP-01', en: 'e.g. 001 / SP-01' },
   'aitems.cardPhoto': { zh: '卡片圖', en: 'Card Image' },
-  'aitems.useGroupPhoto': { zh: '用團預設圖', en: 'Group default' },
+  'aitems.useGroupPhoto': { zh: '使用團封面', en: 'Use group cover' },
   'aitems.noCardImages': {
     zh: '此團尚無已上傳卡圖。可到「圖片上傳」上傳到該團資料夾後再選。',
     en: 'No card images uploaded for this group yet. Upload to the group folder via "Upload Images".',

@@ -3,10 +3,11 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { DataService } from '../../services/data.service';
 import { Order, ShippingMethod } from '../../models/models';
 import { TranslatePipe } from '../../services/translate.pipe';
+import { ImageLightbox } from '../../shared/image-lightbox/image-lightbox';
 
 @Component({
   selector: 'app-orders-admin',
-  imports: [DatePipe, TranslatePipe],
+  imports: [DatePipe, TranslatePipe, ImageLightbox],
   template: `
     <div class="flex-between mb">
       <h2>{{ 'aorders.title' | t }}</h2>
@@ -47,7 +48,22 @@ import { TranslatePipe } from '../../services/translate.pipe';
                       <span class="text-muted">／{{ it.cardName }}{{ it.cardNo ? ' #' + it.cardNo : '' }}</span>
                     }
                   </td>
-                  <td><div class="thumb" [style.background]="it.groupPhoto">{{ it.cbz.slice(0, 5) }}</div></td>
+                  <td>
+                    <button
+                      type="button"
+                      class="thumb thumb-btn"
+                      [class.clickable]="!isColor(it.groupPhoto) && !!it.groupPhoto"
+                      [style.background]="isColor(it.groupPhoto) ? it.groupPhoto : null"
+                      [disabled]="isColor(it.groupPhoto) || !it.groupPhoto"
+                      (click)="openPhoto(it.groupPhoto)"
+                    >
+                      @if (!isColor(it.groupPhoto) && it.groupPhoto) {
+                        <img [src]="it.groupPhoto" [alt]="it.cbz" />
+                      } @else {
+                        {{ it.cbz.slice(0, 5) }}
+                      }
+                    </button>
+                  </td>
                 </tr>
               }
             </tbody>
@@ -64,6 +80,8 @@ import { TranslatePipe } from '../../services/translate.pipe';
         </div>
       }
     }
+
+    <app-image-lightbox [url]="previewUrl()" (closed)="previewUrl.set(null)" />
   `,
   styles: [
     `
@@ -82,12 +100,40 @@ import { TranslatePipe } from '../../services/translate.pipe';
       .total {
         color: var(--c-primary);
       }
+      .thumb {
+        overflow: hidden;
+      }
+      .thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        pointer-events: none;
+      }
+      button.thumb-btn {
+        border: none;
+        padding: 0;
+        font: inherit;
+        color: inherit;
+        cursor: default;
+      }
+      button.thumb-btn.clickable {
+        cursor: pointer;
+      }
+      button.thumb-btn.clickable:hover {
+        transform: scale(1.06);
+        box-shadow: 0 0 0 2px var(--c-primary);
+      }
+      button.thumb-btn:disabled {
+        opacity: 1;
+      }
     `,
   ],
 })
 export class OrdersAdmin {
   private data = inject(DataService);
   tab = signal<'placed' | 'shipped'>('placed');
+  previewUrl = signal<string | null>(null);
 
   list = computed(() => this.data.orders().filter((o) => o.status === this.tab()));
 
@@ -100,6 +146,13 @@ export class OrdersAdmin {
   }
   methodName(m: ShippingMethod) {
     return { cvs: 'wh.cvs', mail: 'wh.mail', pickup: 'wh.pickup' }[m];
+  }
+  isColor(value?: string): boolean {
+    return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value?.trim() ?? '');
+  }
+  openPhoto(photo?: string): void {
+    if (!photo || this.isColor(photo)) return;
+    this.previewUrl.set(photo);
   }
   detail(o: Order) {
     const s = o.shipping;
